@@ -7,19 +7,19 @@ export default defineConfig({
   server: {
     proxy: {
       '/stations': {
-        target: 'http://localhost:8000',
+        target: 'https://best-train-backend.onrender.com',
         changeOrigin: true,
       },
       '/health': {
-        target: 'http://localhost:8000',
+        target: 'https://best-train-backend.onrender.com',
         changeOrigin: true,
       },
       '/train': {
-        target: 'http://localhost:8000',
+        target: 'https://best-train-backend.onrender.com',
         changeOrigin: true,
       },
       '/station': {
-        target: 'http://localhost:8000',
+        target: 'https://best-train-backend.onrender.com',
         changeOrigin: true,
       },
     },
