@@ -1,0 +1,12 @@
+/* kept intentionally minimal; see src/app.css for app styling */
+html,
+body,
+#root {
+  height: 100%;
+  width: 100%;
+}
+
+body {
+  margin: 0;
+  overflow-x: hidden;
+}
