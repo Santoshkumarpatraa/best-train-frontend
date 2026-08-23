@@ -8,14 +8,8 @@
   box-sizing: inherit;
 }
 
-:root {
-  color-scheme: light;
-  font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-}
-
-body {
-  margin: 0;
-  background: #0b1220;
+#root {
+  min-height: 100%;
 }
 
 .app-shell {
@@ -32,16 +26,16 @@ body {
   grid-template-columns: 1fr;
   gap: 12px;
   padding: 10px 12px;
-  background: rgba(15, 23, 42, 0.92);
-  color: #e2e8f0;
-  border-bottom: 1px solid rgba(148, 163, 184, 0.15);
-  backdrop-filter: blur(8px);
+  background: var(--surface);
+  color: var(--text-primary);
+  border-bottom: 1px solid var(--border);
+  backdrop-filter: blur(10px);
 }
 
 .status {
   align-self: center;
   font-size: 12px;
-  color: #94a3b8;
+  color: var(--text-secondary);
   white-space: nowrap;
 }
 
@@ -53,16 +47,16 @@ body {
 .search input {
   width: 100%;
   padding: 10px 12px;
-  border-radius: 10px;
-  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-strong);
   outline: none;
-  background: rgba(2, 6, 23, 0.7);
-  color: #e2e8f0;
+  background: var(--surface-sunken);
+  color: var(--text-primary);
 }
 
 .search input:focus {
-  border-color: rgba(59, 130, 246, 0.8);
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.18);
+  border-color: var(--accent-border);
+  box-shadow: 0 0 0 3px var(--accent-soft);
 }
 
 .hint {
@@ -70,7 +64,7 @@ body {
   right: 10px;
   top: 10px;
   font-size: 12px;
-  color: #94a3b8;
+  color: var(--text-secondary);
 }
 
 .results {
@@ -79,10 +73,11 @@ body {
   top: calc(100% + 8px);
   left: 0;
   right: 0;
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   overflow: hidden;
-  border: 1px solid rgba(148, 163, 184, 0.18);
-  background: rgba(2, 6, 23, 0.95);
+  border: 1px solid var(--border-strong);
+  background: var(--surface-overlay);
+  box-shadow: var(--shadow-md);
 }
 
 .result {
@@ -98,17 +93,17 @@ body {
 }
 
 .result:hover {
-  background: rgba(59, 130, 246, 0.12);
+  background: var(--accent-soft);
 }
 
 .result-title {
   font-size: 13px;
-  color: #e2e8f0;
+  color: var(--text-primary);
 }
 
 .result-sub {
   font-size: 12px;
-  color: #94a3b8;
+  color: var(--text-secondary);
 }
 
 .map {
@@ -121,11 +116,11 @@ body {
 /* Station popup card */
 .station-popup .maplibregl-popup-content {
   padding: 0;
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   overflow: hidden;
-  background: rgba(2, 6, 23, 0.92);
-  color: #e2e8f0;
-  border: 1px solid rgba(148, 163, 184, 0.22);
+  background: var(--surface-overlay);
+  color: var(--text-primary);
+  border: 1px solid var(--border-strong);
 }
 
 .station-popup-card {
@@ -135,7 +130,7 @@ body {
 .station-popup-hero {
   height: 72px;
   background-image:
-    linear-gradient(90deg, rgba(37, 99, 235, 0.25), rgba(249, 115, 22, 0.18)),
+    linear-gradient(90deg, rgba(99, 102, 241, 0.28), rgba(249, 115, 22, 0.18)),
     url('/station-placeholder.svg');
   background-size: cover;
   background-position: center;
@@ -153,48 +148,5 @@ body {
 .station-popup-sub {
   margin-top: 4px;
   font-size: 12px;
-  color: #94a3b8;
-}
-
-#root {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
-  text-align: center;
-}
-
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: filter 300ms;
-}
-.logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
-}
-.logo.react:hover {
-  filter: drop-shadow(0 0 2em #61dafbaa);
-}
-
-@keyframes logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  a:nth-of-type(2) .logo {
-    animation: logo-spin infinite 20s linear;
-  }
-}
-
-.card {
-  padding: 2em;
-}
-
-.read-the-docs {
-  color: #888;
+  color: var(--text-secondary);
 }

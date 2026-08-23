@@ -1,4 +1,17 @@
 import { useState, useEffect, useCallback } from 'react';
+import {
+  TrainFront,
+  MapPin,
+  Flag,
+  ArrowLeftRight,
+  Calendar,
+  ArrowUpDown,
+  Search,
+  ChevronDown,
+  Clock,
+  Timer,
+  SearchX,
+} from 'lucide-react';
 import { getTrainsBetweenStations, getStationList, type Train, type Station } from '../services/trainApi';
 import './BestTrain.css';
 function getTodayLocal(): string {
@@ -204,6 +217,10 @@ export default function BestTrain() {
   return (
     <div className="best-train-container">
       <div className="best-train-header">
+        <span className="header-badge">
+          <TrainFront />
+          Real-time train search
+        </span>
         <h1>Find Best Train</h1>
         <p>Search for trains between stations</p>
       </div>
@@ -212,6 +229,7 @@ export default function BestTrain() {
         <div className="station-inputs">
           <div className="input-group">
             <label htmlFor="from-station">
+              <MapPin />
               From Station <span className="required-asterisk">*</span>
             </label>
             <div className="input-wrapper">
@@ -229,11 +247,7 @@ export default function BestTrain() {
                     setFromStation('');
                   }
                 }}
-                onFocus={() => {
-                  setShowFromSuggestions(true);
-                  setTouchedFields(prev => ({ ...prev, from: true }));
-                }}
-                onBlur={() => setTouchedFields(prev => ({ ...prev, from: true }))}
+                onFocus={() => setShowFromSuggestions(true)}
                 className={`station-input ${touchedFields.from && !fromStation ? 'error' : ''}`}
                 required
               />
@@ -272,12 +286,13 @@ export default function BestTrain() {
               }}
               aria-label="Swap stations"
             >
-              ⇄
+              <ArrowLeftRight />
             </button>
           </div>
 
           <div className="input-group">
             <label htmlFor="to-station">
+              <Flag />
               To Station <span className="required-asterisk">*</span>
             </label>
             <div className="input-wrapper">
@@ -295,11 +310,7 @@ export default function BestTrain() {
                     setToStation('');
                   }
                 }}
-                onFocus={() => {
-                  setShowToSuggestions(true);
-                  setTouchedFields(prev => ({ ...prev, to: true }));
-                }}
-                onBlur={() => setTouchedFields(prev => ({ ...prev, to: true }))}
+                onFocus={() => setShowToSuggestions(true)}
                 className={`station-input ${touchedFields.to && !toStation ? 'error' : ''}`}
                 required
               />
@@ -327,7 +338,10 @@ export default function BestTrain() {
 
         <div className="filter-options">
           <div className="filter-group">
-            <label htmlFor="travel-date">Travel Date (Optional)</label>
+            <label htmlFor="travel-date">
+              <Calendar />
+              Travel Date (Optional)
+            </label>
             <input
               id="travel-date"
               type="date"
@@ -339,7 +353,10 @@ export default function BestTrain() {
           </div>
 
           <div className="filter-group">
-            <label htmlFor="sort-by">Sort By</label>
+            <label htmlFor="sort-by">
+              <ArrowUpDown />
+              Sort By
+            </label>
             <select
               id="sort-by"
               value={sortBy}
@@ -370,15 +387,33 @@ export default function BestTrain() {
           type="button"
           className="search-button"
           onClick={handleSearchTrains}
-          disabled={loading || !fromStation || !toStation}
+          disabled={loading}
         >
-          {loading ? 'Searching...' : 'Search Trains'}
+          {loading ? (
+            <>
+              <span className="spinner" />
+              Searching...
+            </>
+          ) : (
+            <>
+              <Search />
+              Search Trains
+            </>
+          )}
         </button>
       </div>
 
       {error && (
         <div className="error-message">
           {error}
+        </div>
+      )}
+
+      {loading && (
+        <div className="skeleton-list" aria-hidden="true">
+          <div className="skeleton-card" />
+          <div className="skeleton-card" />
+          <div className="skeleton-card" />
         </div>
       )}
 
@@ -416,25 +451,27 @@ export default function BestTrain() {
               <div className="train-details">
                 <div className="route-info">
                   <div className="route-item">
+                    <MapPin />
                     <span className="route-label">From:</span>
                     <span className="route-value">{train.from_station_name} ({train.from_station_code})</span>
                   </div>
                   <div className="route-item">
+                    <Flag />
                     <span className="route-label">To:</span>
                     <span className="route-value">{train.to_station_name} ({train.to_station_code})</span>
                   </div>
                 </div>
                 <div className="time-info">
                   <div className="time-item">
-                    <span className="time-label">Departure:</span>
+                    <span className="time-label"><Clock /> Departure:</span>
                     <span className="time-value">{formatTime(train.departure_time)}</span>
                   </div>
                   <div className="time-item">
-                    <span className="time-label">Arrival:</span>
+                    <span className="time-label"><Clock /> Arrival:</span>
                     <span className="time-value">{formatTime(train.arrival_time)}</span>
                   </div>
                   <div className="time-item">
-                    <span className="time-label">Duration:</span>
+                    <span className="time-label"><Timer /> Duration:</span>
                     <span className="time-value">{train.duration}</span>
                   </div>
                 </div>
@@ -508,9 +545,7 @@ export default function BestTrain() {
                     </div>
                   </div>
                   <div className={`expand-icon ${isExpanded ? 'expanded' : ''}`}>
-                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M4 6L8 10L12 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
+                    <ChevronDown />
                   </div>
                 </button>
                 {isExpanded && (
@@ -525,25 +560,27 @@ export default function BestTrain() {
                           <div className="train-details">
                             <div className="route-info">
                               <div className="route-item">
-                                <span className="route-label">From:</span>
+                                <MapPin />
+                    <span className="route-label">From:</span>
                                 <span className="route-value">{train.from_station_name} ({train.from_station_code})</span>
                               </div>
                               <div className="route-item">
-                                <span className="route-label">To:</span>
+                                <Flag />
+                    <span className="route-label">To:</span>
                                 <span className="route-value">{train.to_station_name} ({train.to_station_code})</span>
                               </div>
                             </div>
                             <div className="time-info">
                               <div className="time-item">
-                                <span className="time-label">Departure:</span>
+                                <span className="time-label"><Clock /> Departure:</span>
                                 <span className="time-value">{formatTime(train.departure_time)}</span>
                               </div>
                               <div className="time-item">
-                                <span className="time-label">Arrival:</span>
+                                <span className="time-label"><Clock /> Arrival:</span>
                                 <span className="time-value">{formatTime(train.arrival_time)}</span>
                               </div>
                               <div className="time-item">
-                                <span className="time-label">Duration:</span>
+                                <span className="time-label"><Timer /> Duration:</span>
                                 <span className="time-value">{train.duration}</span>
                               </div>
                             </div>
@@ -580,6 +617,7 @@ export default function BestTrain() {
 
       {hasSearched && !loading && trains.length === 0 && nearbyTrains.length === 0 && fromStation && toStation && !error && (
         <div className="no-results">
+          <SearchX />
           <p>No trains found between these stations.</p>
           <p className="no-results-hint">Try searching for nearby stations or different routes.</p>
         </div>
