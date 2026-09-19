@@ -1,0 +1,182 @@
+/* Best Train - design tokens.
+   Palette is "paper + board": warm paper surfaces for reading, a dark
+   departure-board strip for identity, one burnt-rail accent for actions. */
+
+:root {
+  color-scheme: light;
+
+  --paper: #ffffff;
+  --paper-2: #ffffff;
+  --paper-3: #f2f5f9;
+  --hover: #f7f9fc;
+  --rule: #e5e9ef;
+  --rule-2: #ccd3dd;
+
+  --ink: #0b0c0e;
+  --ink-2: #454c57;
+  --ink-3: #6b7280;
+
+  --signal: #c9400c;
+  --signal-tint: #ffece3;
+
+  --board: #0b0c0e;
+  --board-ink: #ffc94d;
+
+  --go: #0a6d49;
+  --go-solid: #0a7a52;
+  --go-tint: #ddf7ea;
+  --halt: #9a6206;
+  --halt-tint: #fff1d6;
+  --stop: #c62828;
+  --stop-tint: #ffe9e7;
+
+  --r-1: 6px;
+  --r-2: 12px;
+  --r-3: 18px;
+  --r-4: 26px;
+  --r-pill: 999px;
+
+  --grad-signal: linear-gradient(135deg, #e0561d 0%, #c9400c 55%, #a8320a 100%);
+  --grad-ink: linear-gradient(160deg, #1c1f26 0%, #0b0c0e 100%);
+  --grad-wash: linear-gradient(180deg, rgba(201, 64, 12, 0.07) 0%, rgba(201, 64, 12, 0) 60%);
+  --glass: rgba(255, 255, 255, 0.72);
+
+  --lift-2: 0 2px 4px rgba(11, 12, 14, 0.04), 0 8px 20px -10px rgba(11, 12, 14, 0.14);
+  --lift-3: 0 18px 44px -16px rgba(11, 12, 14, 0.26), 0 3px 10px rgba(11, 12, 14, 0.07);
+  --lift-4: 0 34px 70px -28px rgba(11, 12, 14, 0.36), 0 6px 18px rgba(11, 12, 14, 0.08);
+  --lift-signal: 0 14px 30px -12px rgba(201, 64, 12, 0.5);
+
+  --sans: 'Archivo', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+
+  --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-soft: cubic-bezier(0.32, 0.72, 0, 1);
+  --rail: 1240px;
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  --paper: #0d0f12;
+  --paper-2: #16191e;
+  --paper-3: #1f242b;
+  --hover: #1d2229;
+  --rule: #272c34;
+  --rule-2: #3a414b;
+
+  --ink: #f3f5f8;
+  --ink-2: #b4bcc7;
+  --ink-3: #8c95a2;
+
+  --signal: #ff7a45;
+  --signal-tint: #30190f;
+
+  --board: #07080a;
+  --board-ink: #ffcb52;
+
+  --go: #34d399;
+  --go-solid: #0d8f60;
+  --go-tint: #0f2c22;
+  --halt: #e8b13d;
+  --halt-tint: #2d2413;
+  --stop: #ff7b72;
+  --stop-tint: #30191a;
+
+  --grad-signal: linear-gradient(135deg, #ff8a56 0%, #e0561d 55%, #c2440f 100%);
+  --grad-ink: linear-gradient(160deg, #1b2027 0%, #0a0c0f 100%);
+  --grad-wash: linear-gradient(180deg, rgba(255, 122, 69, 0.1) 0%, rgba(255, 122, 69, 0) 60%);
+  --glass: rgba(16, 19, 24, 0.72);
+
+  --lift-2: 0 2px 4px rgba(0, 0, 0, 0.4), 0 8px 20px -10px rgba(0, 0, 0, 0.6);
+  --lift-3: 0 18px 44px -16px rgba(0, 0, 0, 0.8), 0 3px 10px rgba(0, 0, 0, 0.5);
+  --lift-4: 0 34px 70px -28px rgba(0, 0, 0, 0.9), 0 6px 18px rgba(0, 0, 0, 0.6);
+  --lift-signal: 0 14px 30px -12px rgba(255, 122, 69, 0.4);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 16px;
+  line-height: 1.45;
+  font-synthesis-weight: none;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+h1,
+h2,
+h3,
+p {
+  margin: 0;
+}
+
+button,
+input,
+select {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+  border: 0;
+  background: none;
+  padding: 0;
+}
+
+:where(a, button, input, [tabindex]):focus-visible {
+  outline: 2px solid var(--signal);
+  outline-offset: 2px;
+  border-radius: var(--r-1);
+}
+
+/* Every number in this app is read in a column - keep the columns straight. */
+.num {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

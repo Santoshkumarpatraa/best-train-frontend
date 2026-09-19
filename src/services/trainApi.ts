@@ -123,3 +123,141 @@ export async function getStationList(params: {
   }
   return res.json();
 }
+
+export type ResolvedType = 'station' | 'city' | 'place' | 'district' | 'state' | null;
+
+export type ResolvedSide = {
+  input: string;
+  type: ResolvedType;
+  label: string | null;
+  parent?: string | null;
+  stations: Array<{ code: string; name: string }>;
+};
+
+export type Suggestion = {
+  kind: 'station' | 'city' | 'place' | 'district' | 'state';
+  label: string;
+  code: string | null;
+  stationCount: number;
+  /** What to send as `from`/`to` - a station code, or the area's name. */
+  query: string;
+};
+
+export type TrainBetweenPlacesResponse = {
+  message: string;
+  data: {
+    from: ResolvedSide;
+    to: ResolvedSide;
+    totalCount: number;
+    trains: Train[];
+    date?: string | null;
+    dayOfWeek?: number;
+    alternate_days?: { totalCount: number; trains: Train[] };
+  };
+};
+
+export async function getSuggestions(params: {
+  q: string;
+  limit?: number;
+  signal?: AbortSignal;
+}): Promise<{ suggestions: Suggestion[]; totalStations: number; totalTrains: number; totalDestinations: number }> {
+  const endpoint = '/place/suggest';
+  const url = API_BASE_URL ? new URL(endpoint, API_BASE_URL) : new URL(endpoint, window.location.origin);
+  url.searchParams.set('q', params.q);
+  url.searchParams.set('limit', String(params.limit ?? 10));
+
+  const res = await fetch(url.toString(), { signal: params.signal });
+  if (!res.ok) throw new Error(`Suggest failed: ${res.status}`);
+  const body: {
+    data: { suggestions: Suggestion[]; totalStations: number; totalTrains: number; totalDestinations: number };
+  } = await res.json();
+  return body.data;
+}
+
+/**
+ * Accepts a station code, place, district or state on either side - the API
+ * resolves each independently and reports what it matched.
+ */
+export async function getTrainsBetweenPlaces(params: {
+  from: string;
+  to: string;
+  /** What the user actually picked, so "Delhi" the state is not resolved as the city. */
+  fromKind?: string;
+  toKind?: string;
+  date?: string;
+  limit?: number;
+  sort?: 'duration' | 'departure_time' | 'arrival_time';
+  order?: 'asc' | 'desc';
+  signal?: AbortSignal;
+}): Promise<TrainBetweenPlacesResponse> {
+  const endpoint = '/train/between/places';
+  const url = API_BASE_URL ? new URL(endpoint, API_BASE_URL) : new URL(endpoint, window.location.origin);
+
+  url.searchParams.set('from', params.from);
+  url.searchParams.set('to', params.to);
+  if (params.fromKind) url.searchParams.set('from_kind', params.fromKind);
+  if (params.toKind) url.searchParams.set('to_kind', params.toKind);
+  if (params.date) url.searchParams.set('date', params.date);
+  if (params.limit !== undefined) url.searchParams.set('limit', String(params.limit));
+  if (params.sort) url.searchParams.set('sort', params.sort);
+  if (params.order) url.searchParams.set('order', params.order);
+
+  const res = await fetch(url.toString(), { signal: params.signal });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({ message: 'Failed to fetch trains' }));
+    throw new Error(error.message || `Train fetch failed: ${res.status}`);
+  }
+  return res.json();
+}
+
+export type RouteStop = {
+  serial: number;
+  code: string;
+  name: string;
+  state: string | null;
+  district: string | null;
+  arrival: string | null;
+  departure: string | null;
+  halt: string | null;
+  distance: number | null;
+  day: number | null;
+  routeNumber: string | null;
+  boardingDisabled: boolean;
+  lat: number | null;
+  lng: number | null;
+};
+
+export type TrainRouteResponse = {
+  message: string;
+  data: {
+    train: {
+      train_number: string;
+      train_name: string;
+      train_owner: string | null;
+      duration: string | null;
+      station_from: string | null;
+      station_to: string | null;
+      runs_on: number[];
+    };
+    totalStops: number;
+    totalDistance: number | null;
+    mappedStops: number;
+    stops: RouteStop[];
+  };
+};
+
+export async function getTrainRoute(params: {
+  number: string;
+  signal?: AbortSignal;
+}): Promise<TrainRouteResponse['data']> {
+  const endpoint = `/train/${encodeURIComponent(params.number)}/route`;
+  const url = API_BASE_URL ? new URL(endpoint, API_BASE_URL) : new URL(endpoint, window.location.origin);
+
+  const res = await fetch(url.toString(), { signal: params.signal });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({ message: 'Failed to load route' }));
+    throw new Error(error.message || `Route fetch failed: ${res.status}`);
+  }
+  const body: TrainRouteResponse = await res.json();
+  return body.data;
+}
