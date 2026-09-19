@@ -9,6 +9,19 @@ type InstallPromptEvent = Event & {
 const DISMISSED_KEY = 'bt.install.dismissed';
 const DISMISS_DAYS = 30;
 
+/** Where the document head parks the event it caught before React mounted. */
+type InstallWindow = Window & { __btInstallEvent?: InstallPromptEvent | null };
+
+function stashedPrompt(): InstallPromptEvent | null {
+  return (window as InstallWindow).__btInstallEvent ?? null;
+}
+
+/** Both hook instances keep their own state, so a change has to be announced. */
+function clearStashedPrompt() {
+  (window as InstallWindow).__btInstallEvent = null;
+  window.dispatchEvent(new Event('bt:install-ready'));
+}
+
 function dismissedRecently(): boolean {
   try {
     const at = Number(localStorage.getItem(DISMISSED_KEY));
@@ -26,8 +39,7 @@ function isStandalone(): boolean {
 }
 
 function isIosSafari(): boolean {
-  // Chromium exposes this and can prompt for real, so it never needs the
-  // manual route - and this keeps device emulation on a Mac from faking iOS.
+  // Chromium can prompt for real, so this also stops Mac device emulation faking iOS.
   if ('onbeforeinstallprompt' in window) return false;
 
   const ua = window.navigator.userAgent;
@@ -38,8 +50,10 @@ function isIosSafari(): boolean {
 }
 
 export type InstallState = {
-  /** Show the banner. */
+  /** Show the one-time banner. False once dismissed or installed. */
   available: boolean;
+  /** Ignores dismissal, so a permanent control survives waving the banner away. */
+  ready: boolean;
   /** iOS cannot prompt programmatically, so it needs instructions instead. */
   manual: boolean;
   install: () => void;
@@ -47,45 +61,49 @@ export type InstallState = {
 };
 
 export function useInstallPrompt(): InstallState {
-  const [deferred, setDeferred] = useState<InstallPromptEvent | null>(null);
+  // Chrome fires it once, usually before this mounts, so the head script's catch is the live one.
+  const [deferred, setDeferred] = useState<InstallPromptEvent | null>(stashedPrompt);
   const [manual, setManual] = useState(false);
-  const [hidden, setHidden] = useState(true);
+  // Synchronous reads of browser state, so an effect would render once with the wrong value.
+  const [installed, setInstalled] = useState(isStandalone);
+  const [dismissed, setDismissed] = useState(dismissedRecently);
 
   useEffect(() => {
-    if (isStandalone() || dismissedRecently()) return;
+    if (installed) return;
 
     const onPrompt = (event: Event) => {
       // Suppress Chrome's own mini-infobar; the app shows its own banner.
       event.preventDefault();
       setDeferred(event as InstallPromptEvent);
-      setHidden(false);
     };
+    // Relayed by the head script, so a later hook and a second instance both get it.
+    const onRelay = () => setDeferred(stashedPrompt());
     const onInstalled = () => {
+      clearStashedPrompt();
       setDeferred(null);
-      setHidden(true);
+      setInstalled(true);
     };
 
     window.addEventListener('beforeinstallprompt', onPrompt);
+    window.addEventListener('bt:install-ready', onRelay);
     window.addEventListener('appinstalled', onInstalled);
 
     // iOS never fires beforeinstallprompt, so offer the manual route instead.
     let timer = 0;
     if (isIosSafari()) {
-      timer = window.setTimeout(() => {
-        setManual(true);
-        setHidden(false);
-      }, 2500);
+      timer = window.setTimeout(() => setManual(true), 1200);
     }
 
     return () => {
       window.removeEventListener('beforeinstallprompt', onPrompt);
+      window.removeEventListener('bt:install-ready', onRelay);
       window.removeEventListener('appinstalled', onInstalled);
       window.clearTimeout(timer);
     };
-  }, []);
+  }, [installed]);
 
   const dismiss = useCallback(() => {
-    setHidden(true);
+    setDismissed(true);
     try {
       localStorage.setItem(DISMISSED_KEY, String(Date.now()));
     } catch {
@@ -96,11 +114,13 @@ export function useInstallPrompt(): InstallState {
   const install = useCallback(() => {
     if (!deferred) return;
     void deferred.prompt();
+    // Single-use, so clear the stash or the other instance offers a dead prompt.
     void deferred.userChoice.finally(() => {
+      clearStashedPrompt();
       setDeferred(null);
-      setHidden(true);
     });
   }, [deferred]);
 
-  return { available: !hidden && (Boolean(deferred) || manual), manual, install, dismiss };
+  const ready = !installed && (Boolean(deferred) || manual);
+  return { available: ready && !dismissed, ready, manual, install, dismiss };
 }

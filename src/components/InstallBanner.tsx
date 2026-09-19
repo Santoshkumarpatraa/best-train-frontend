@@ -1,11 +1,17 @@
+import { useEffect } from 'react';
 import { useInstallPrompt } from '../lib/useInstallPrompt';
 
-/**
- * Mobile-only prompt to add the app to the home screen. Hidden on desktop by
- * CSS, and never shown once installed or dismissed.
- */
+/** Mobile-only home-screen prompt; hidden by CSS on desktop, and once installed or dismissed. */
 export default function InstallBanner() {
   const { available, manual, install, dismiss } = useInstallPrompt();
+
+  // Fixed to the viewport bottom, so the page must stop short or the last card hides under it.
+  useEffect(() => {
+    if (!available) return;
+    document.body.classList.add('has-install');
+    return () => document.body.classList.remove('has-install');
+  }, [available]);
+
   if (!available) return null;
 
   return (

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { NearbyTrain } from '../services/trainApi';
 import { clock, durationMinutes, formatDuration, setStats, stationCase } from '../lib/format';
+import { usePublishedHeight } from '../lib/useStuck';
 import TrainRow from './TrainRow';
 
 function summarise(group: NearbyTrain) {
@@ -27,10 +28,12 @@ export default function NearbyGateways({
   onOpen?: (trainNumber: string) => void;
 }) {
   const [open, setOpen] = useState<number | null>(groups.length === 1 ? 0 : null);
+  // Each gateway header pins under this one, whose height changes as the subtitle wraps.
+  const headRef = usePublishedHeight('--gateway-head-h');
 
   return (
-    <section className="section">
-      <div className="section__head">
+    <section className="section section--list">
+      <div className="section__head" ref={headRef}>
         <h2 className="section__title">Nearby gateways</h2>
         <p className="section__sub">
           Stations close to your route with their own services. Handy when the direct list is thin.

@@ -1,9 +1,8 @@
+import InstallButton from './InstallButton';
+
 type Props = { theme: 'light' | 'dark'; onToggleTheme: () => void };
 
-/**
- * The mark is the route line the app draws everywhere else: two stops joined
- * by a track, rather than a literal train.
- */
+/** The mark is the route line drawn everywhere else: two stops joined by a track. */
 function Logo() {
   return (
     <span className="mark__glyph" aria-hidden="true">
@@ -64,7 +63,10 @@ export default function Masthead({ theme, onToggleTheme }: Props) {
           </span>
         </a>
 
-        <ThemeToggle theme={theme} onToggleTheme={onToggleTheme} />
+        <div className="nav__actions">
+          <InstallButton />
+          <ThemeToggle theme={theme} onToggleTheme={onToggleTheme} />
+        </div>
       </div>
     </header>
   );

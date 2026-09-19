@@ -38,8 +38,7 @@ export default function StationCombobox({ label, value, onChange, placeholder, i
   const [options, setOptions] = useState<Suggestion[]>([]);
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
-  // Opening the list should not pre-select anything. A highlight only means
-  // "Enter picks this", which is true once there is a query or an arrow press.
+  // A highlight means "Enter picks this", so nothing is highlighted until typed or arrowed to.
   const [navigated, setNavigated] = useState(false);
   const boxRef = useRef<HTMLDivElement>(null);
 
@@ -129,8 +128,10 @@ export default function StationCombobox({ label, value, onChange, placeholder, i
   const optionId = (s: Suggestion, i: number) => `${listId}-${s.kind}-${s.code ?? i}`;
   const badge = useMemo(() => {
     if (!value) return null;
-    if (value.kind === 'station') return value.code;
-    return KIND_LABEL[value.kind];
+    const text = value.kind === 'station' ? value.code : KIND_LABEL[value.kind];
+    // A link-restored station's label is its code, so badging it prints the same letters twice.
+    if (!text || text.toLowerCase() === endpointLabel(value).toLowerCase()) return null;
+    return text;
   }, [value]);
 
   return (
@@ -176,38 +177,38 @@ export default function StationCombobox({ label, value, onChange, placeholder, i
         <ul className="combo__list" id={listId} role="listbox" aria-label={label}>
           {!typed && <li className="combo__caption">Popular destinations</li>}
           {options.map((option, index) => (
-            <li key={optionId(option, index)}>
-              <button
-                type="button"
-                id={optionId(option, index)}
-                role="option"
-                aria-selected={showActive && index === active}
-                className={`combo__option${showActive && index === active ? ' is-active' : ''}`}
-                onMouseEnter={() => {
-                  setActive(index);
-                  setNavigated(true);
-                }}
-                onClick={() => commit(option)}
-              >
-                <span className="combo__option-name">
-                  <Highlight
-                    text={option.kind === 'station' ? stationCase(option.label) : option.label}
-                    query={typed}
-                  />
-                </span>
-                <span className="combo__option-meta">
-                  {option.code ? (
-                    <span className="combo__option-code num">
-                      <Highlight text={option.code} query={typed} />
-                    </span>
-                  ) : (
-                    <span className="combo__option-count num">{option.stationCount} stn</span>
-                  )}
-                  <span className={`combo__option-kind combo__option-kind--${option.kind}`}>
-                    {KIND_LABEL[option.kind]}
+            <li
+              key={optionId(option, index)}
+              id={optionId(option, index)}
+              role="option"
+              aria-selected={showActive && index === active}
+              className={`combo__option${showActive && index === active ? ' is-active' : ''}`}
+              onMouseEnter={() => {
+                setActive(index);
+                setNavigated(true);
+              }}
+              // Keeps focus on the input so the caret survives the click.
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={() => commit(option)}
+            >
+              <span className="combo__option-name">
+                <Highlight
+                  text={option.kind === 'station' ? stationCase(option.label) : option.label}
+                  query={typed}
+                />
+              </span>
+              <span className="combo__option-meta">
+                {option.code ? (
+                  <span className="combo__option-code num">
+                    <Highlight text={option.code} query={typed} />
                   </span>
+                ) : (
+                  <span className="combo__option-count num">{option.stationCount} stn</span>
+                )}
+                <span className={`combo__option-kind combo__option-kind--${option.kind}`}>
+                  {KIND_LABEL[option.kind]}
                 </span>
-              </button>
+              </span>
             </li>
           ))}
         </ul>

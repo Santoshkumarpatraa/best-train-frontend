@@ -2,7 +2,6 @@ import type { Train } from '../services/trainApi';
 import {
   DAY_LABELS,
   addDays,
-  averageSpeed,
   clock,
   dayOffset,
   durationMinutes,
@@ -46,7 +45,6 @@ export default function TrainRow({
 }) {
   const tags = tagsFor(train, stats);
   const plus = dayOffset(train);
-  const speed = averageSpeed(train);
   const service = trainClass(train);
   const name = trainName(train.train_name);
   const showService = !name.toLowerCase().includes(service.label.toLowerCase());
@@ -59,8 +57,7 @@ export default function TrainRow({
       style={{ animationDelay: `${Math.min(index, 7) * 45}ms` }}
     >
       {onOpen && (
-        // A full-card overlay button keeps the whole card clickable without
-        // nesting the heading and badges inside a control.
+        // A full-card overlay keeps the card clickable without nesting headings in a control.
         <button type="button" className="jcard__open" onClick={() => onOpen(train.train_number)}>
           <span className="sr-only">{`View route and stops for ${name}`}</span>
         </button>
@@ -72,23 +69,28 @@ export default function TrainRow({
           <h3 className="jcard__name">{name}</h3>
         </div>
         <div className="jcard__badges">
-          {showService && <span className={`service service--${service.tone}`}>{service.label}</span>}
-          {onOpen && (
-            <span className="jcard__routebtn" aria-hidden="true">
-              <svg viewBox="0 0 24 24" fill="none" focusable="false">
-                <path
-                  d="M5 18h6a4 4 0 0 0 4-4V7"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-                <circle cx="5" cy="18" r="2.6" fill="currentColor" />
-                <circle cx="15" cy="6" r="2.6" fill="currentColor" />
-              </svg>
+          {tags.map((tag) => (
+            <span key={tag.label} className={`tag tag--${tag.tone}`}>
+              {tag.label}
             </span>
-          )}
+          ))}
+          {showService && <span className={`service service--${service.tone}`}>{service.label}</span>}
         </div>
+        {onOpen && (
+          <span className="jcard__routebtn" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" focusable="false">
+              <path
+                d="M5 18h6a4 4 0 0 0 4-4V7"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+              <circle cx="5" cy="18" r="2.6" fill="currentColor" />
+              <circle cx="15" cy="6" r="2.6" fill="currentColor" />
+            </svg>
+          </span>
+        )}
       </header>
 
       <div className="jcard__journey">
@@ -124,19 +126,6 @@ export default function TrainRow({
           </span>
         </div>
       </div>
-
-      <footer className="jcard__meta">
-        <span className="jcard__facts">
-          {tags.map((tag) => (
-            <span key={tag.label} className={`tag tag--${tag.tone}`}>
-              {tag.label}
-            </span>
-          ))}
-        </span>
-        <span className="jcard__right">
-          {speed !== null && <span className="jcard__speed num">{speed} km/h</span>}
-        </span>
-      </footer>
     </article>
   );
 }

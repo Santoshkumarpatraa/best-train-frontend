@@ -174,10 +174,7 @@ export async function getSuggestions(params: {
   return body.data;
 }
 
-/**
- * Accepts a station code, place, district or state on either side - the API
- * resolves each independently and reports what it matched.
- */
+/** Either side may be a station code, place, district or state; the API reports what it matched. */
 export async function getTrainsBetweenPlaces(params: {
   from: string;
   to: string;
@@ -245,6 +242,36 @@ export type TrainRouteResponse = {
     stops: RouteStop[];
   };
 };
+
+export type TrainMatch = {
+  train_number: string;
+  train_name: string;
+  station_from: string | null;
+  station_to: string | null;
+  duration: string | null;
+};
+
+export type TrainSearchResponse = {
+  message: string;
+  data: { query: string; trains: TrainMatch[] };
+};
+
+/** Trains whose number starts with what has been typed. Needs at least 2 digits. */
+export async function searchTrains(params: {
+  q: string;
+  limit?: number;
+  signal?: AbortSignal;
+}): Promise<TrainMatch[]> {
+  const endpoint = '/train/search';
+  const url = API_BASE_URL ? new URL(endpoint, API_BASE_URL) : new URL(endpoint, window.location.origin);
+  url.searchParams.set('q', params.q);
+  if (params.limit !== undefined) url.searchParams.set('limit', String(params.limit));
+
+  const res = await fetch(url.toString(), { signal: params.signal });
+  if (!res.ok) throw new Error(`Train search failed: ${res.status}`);
+  const body: TrainSearchResponse = await res.json();
+  return body.data.trains;
+}
 
 export async function getTrainRoute(params: {
   number: string;

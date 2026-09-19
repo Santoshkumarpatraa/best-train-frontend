@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import InstallBanner from '../components/InstallBanner';
 import DateStrip from '../components/DateStrip';
+import HeroTrain from '../components/HeroTrain';
 import Masthead from '../components/Masthead';
 import NearbyGateways from '../components/NearbyGateways';
 import ResolvedBar from '../components/ResolvedBar';
@@ -11,21 +12,23 @@ import TrainDetail from '../components/TrainDetail';
 import TrainRow from '../components/TrainRow';
 import {
   getSuggestions,
+  searchTrains,
   getTrainsBetweenPlaces,
   getTrainsBetweenStations,
   type NearbyTrain,
   type ResolvedSide,
   type Train,
+  type TrainMatch,
 } from '../services/trainApi';
 import { pushRecent, readRecent, type RecentRoute } from '../lib/recent';
+import { usePublishedHeight, useStuck } from '../lib/useStuck';
 import {
   approxCount,
   formatISODate,
-  formatKm,
-  matchesTrain,
   setStats,
   sortTrains,
   stationCase,
+  trainName,
   type SortKey,
 } from '../lib/format';
 import { endpointLabel, endpointParam, endpointQuery, parseEndpointParam, sameEndpoint, type Endpoint } from '../lib/endpoint';
@@ -50,8 +53,7 @@ function stationSide(endpoint: Endpoint, name: string): ResolvedSide {
 }
 
 export default function BestTrain({ theme, onToggleTheme }: { theme: 'light' | 'dark'; onToggleTheme: () => void }) {
-  // Seeded straight from the address bar so a shared link renders correctly on
-  // the first paint, without an effect writing state back in.
+  // Seeded from the address bar so a shared link is right on the first paint.
   const [query, setQuery] = useState<Query>(readQuery);
   const [from, setFrom] = useState<Endpoint | null>(() => parseEndpointParam(readQuery().from));
   const [to, setTo] = useState<Endpoint | null>(() => parseEndpointParam(readQuery().to));
@@ -60,8 +62,12 @@ export default function BestTrain({ theme, onToggleTheme }: { theme: 'light' | '
   const [problem, setProblem] = useState<Problem>(null);
   const [recent, setRecent] = useState<RecentRoute[]>(readRecent);
   const [showOtherDays, setShowOtherDays] = useState(false);
-  const [filter, setFilter] = useState('');
   const [totals, setTotals] = useState<{ stations: number; trains: number; destinations: number } | null>(null);
+  const [trainLookup, setTrainLookup] = useState('');
+  const [trainMatches, setTrainMatches] = useState<TrainMatch[]>([]);
+  const [headStuck, sentinelRef] = useStuck('--nav-h');
+  // Section headings stack under the bar, so they need to know how tall it is.
+  const barRef = usePublishedHeight('--results-bar-h');
   const inFlight = useRef<AbortController | null>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
 
@@ -74,8 +80,7 @@ export default function BestTrain({ theme, onToggleTheme }: { theme: 'light' | '
     setProblem(null);
     setShowOtherDays(false);
 
-    // Only a station pair can use the station endpoint, which is the one that
-    // returns nearby gateways and other-day services.
+    // Only a station pair reaches the endpoint that returns gateways and other-day services.
     const bothStations = origin.kind === 'station' && destination.kind === 'station';
 
     try {
@@ -136,20 +141,27 @@ export default function BestTrain({ theme, onToggleTheme }: { theme: 'light' | '
     }
   }, []);
 
+  const queryRef = useRef(query);
+  useEffect(() => {
+    queryRef.current = query;
+  }, [query]);
+
   const applyQuery = useCallback(
     (next: Query) => {
+      const previous = queryRef.current;
       setQuery(next);
       const origin = parseEndpointParam(next.from);
       const destination = parseEndpointParam(next.to);
       setFrom(origin);
       setTo(destination);
-      if (origin && destination) void run(origin, destination, next.date, next.sort);
+      // The route panel is its own history step; the list behind it must not refetch.
+      const sameSearch = next.from === previous.from && next.to === previous.to && next.date === previous.date;
+      if (origin && destination && !sameSearch) void run(origin, destination, next.date, next.sort);
     },
     [run],
   );
 
-  // Boot: one small request seeds the station count; the picker fetches its own
-  // suggestions on focus. Nothing large is downloaded before the page is usable.
+  // One small request seeds the counts; nothing large downloads before the page is usable.
   useEffect(() => {
     let cancelled = false;
     getSuggestions({ q: '', limit: 1 })
@@ -174,6 +186,26 @@ export default function BestTrain({ theme, onToggleTheme }: { theme: 'light' | '
       cancelled = true;
     };
   }, [run]);
+
+  // Two digits narrows 6,000-odd trains to a readable list without recalling the whole number.
+  useEffect(() => {
+    const q = trainLookup.trim();
+    if (q.length < 2) return;
+
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => {
+      searchTrains({ q, limit: 8, signal: controller.signal })
+        .then((trains) => {
+          if (!controller.signal.aborted) setTrainMatches(trains);
+        })
+        .catch(() => undefined);
+    }, 160);
+
+    return () => {
+      controller.abort();
+      window.clearTimeout(timer);
+    };
+  }, [trainLookup]);
 
   // Back/forward should restore the search, not just the address bar.
   useEffect(() => {
@@ -202,7 +234,6 @@ export default function BestTrain({ theme, onToggleTheme }: { theme: 'light' | '
     setTo(null);
     setResult(null);
     setProblem(null);
-    setFilter('');
     const next: Query = { ...query, from: '', to: '', date: '', train: '' };
     setQuery(next);
     writeQuery(next);
@@ -221,6 +252,20 @@ export default function BestTrain({ theme, onToggleTheme }: { theme: 'light' | '
     writeQuery(next);
   };
 
+  // Same sheet the result rows open, reached straight from the number.
+  const openLookupTrain = (trainNumber: string) => {
+    openTrain(trainNumber);
+    setTrainLookup('');
+    setTrainMatches([]);
+  };
+
+  const lookupTrain = (event: React.FormEvent) => {
+    event.preventDefault();
+    const number = trainLookup.trim();
+    if (!/^\d{1,5}$/.test(number)) return;
+    openLookupTrain(number);
+  };
+
   const closeTrain = () => {
     const next = { ...query, train: '' };
     setQuery(next);
@@ -237,27 +282,34 @@ export default function BestTrain({ theme, onToggleTheme }: { theme: 'light' | '
   };
 
   const direct = useMemo(
-    () =>
-      result
-        ? sortTrains(result.trains, query.sort, query.desc).filter((t) => matchesTrain(t, filter))
-        : [],
-    [result, query.sort, query.desc, filter],
+    () => (result ? sortTrains(result.trains, query.sort, query.desc) : []),
+    [result, query.sort, query.desc],
   );
   const otherDays = useMemo(
-    () =>
-      result
-        ? sortTrains(result.otherDays, query.sort, query.desc).filter((t) => matchesTrain(t, filter))
-        : [],
-    [result, query.sort, query.desc, filter],
+    () => (result ? sortTrains(result.otherDays, query.sort, query.desc) : []),
+    [result, query.sort, query.desc],
   );
   const stats = useMemo(() => setStats(direct), [direct]);
   const otherStats = useMemo(() => setStats(otherDays), [otherDays]);
 
   const gateways = result?.nearby ?? [];
   const isArea = result?.mode === 'places';
-  const routeDistance = direct[0]?.distance_between ?? null;
-  const heading = (side: ResolvedSide) =>
-    side.type === 'station' && side.stations[0] ? side.stations[0].code : side.label || side.input;
+  // The date strip shows the day and each card its distance, so only an area search is left to say.
+  const routeDetail = result && isArea ? 'area search' : '';
+  /** One end of the title: a station shows its code, an area its name. */
+  const resolvedHead = (side: ResolvedSide) => ({
+    text: side.type === 'station' && side.stations[0] ? side.stations[0].code : side.label || side.input,
+    mono: side.type === 'station',
+  });
+
+  const searchedHead = (endpoint: Endpoint) => ({
+    text: endpoint.kind === 'station' ? (endpoint.code ?? endpoint.query) : endpoint.label,
+    mono: endpoint.kind === 'station',
+  });
+
+  // A request in flight has not replaced the result, so the title follows what is being searched.
+  const headFrom = loading && from ? searchedHead(from) : result ? resolvedHead(result.from) : null;
+  const headTo = loading && to ? searchedHead(to) : result ? resolvedHead(result.to) : null;
 
   return (
     <>
@@ -265,6 +317,7 @@ export default function BestTrain({ theme, onToggleTheme }: { theme: 'light' | '
 
       {!result && (
         <div className="hero">
+          <HeroTrain />
           <div className="hero__inner">
             <h1 className="hero__title">
               Every train between <span className="hero__accent">any two places</span> in India.
@@ -315,11 +368,63 @@ export default function BestTrain({ theme, onToggleTheme }: { theme: 'light' | '
         onSubmit={submit}
       />
 
-      <main className="page" ref={resultsRef}>
-        {loading && <Skeleton />}
+      <main className="page" ref={resultsRef} aria-busy={loading}>
+        {loading && !result && <Skeleton />}
 
         {!loading && !result && (
           <section className="intro">
+            <div className="intro__block">
+              <h2 className="intro__title">Know the train number?</h2>
+              <form className="lookup" onSubmit={lookupTrain}>
+                <input
+                  className="lookup__input num"
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="off"
+                  maxLength={5}
+                  placeholder="12841"
+                  aria-label="Train number"
+                  value={trainLookup}
+                  onChange={(event) => {
+                    const next = event.target.value.replace(/\D/g, '');
+                    setTrainLookup(next);
+                    // Cleared here, not in the effect, to avoid a synchronous setState in its body.
+                    if (next.trim().length < 2) setTrainMatches([]);
+                  }}
+                />
+                <button type="submit" className="lookup__go" disabled={!/^\d{1,5}$/.test(trainLookup)}>
+                  View route
+                </button>
+              </form>
+              {trainMatches.length > 0 && (
+                <ul className="lookup__list">
+                  {trainMatches.map((match) => (
+                    <li key={match.train_number}>
+                      <button
+                        type="button"
+                        className="lookup__option"
+                        onClick={() => openLookupTrain(match.train_number)}
+                      >
+                        <span className="lookup__option-num num">{match.train_number}</span>
+                        <span className="lookup__option-name">{trainName(match.train_name)}</span>
+                        {match.station_from && match.station_to && (
+                          <span className="lookup__option-route">
+                            <span className="num">{match.station_from}</span>
+                            <span className="lookup__option-arrow" aria-hidden="true">
+                              →
+                            </span>
+                            <span className="num">{match.station_to}</span>
+                          </span>
+                        )}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+
+              <p className="lookup__hint">Opens the full stop list and route map, the same as tapping a result.</p>
+            </div>
+
             {recent.length > 0 && (
               <div className="intro__block">
                 <h2 className="intro__title">Pick up where you left off</h2>
@@ -366,45 +471,33 @@ export default function BestTrain({ theme, onToggleTheme }: { theme: 'light' | '
           </section>
         )}
 
-        {!loading && result && (
+        {result && (
           <>
-            <div className="results-head">
-              <div className="results-head__route">
-                <h2 className="results-head__title">
-                  <span className={result.from.type === 'station' ? 'num' : undefined}>{heading(result.from)}</span>
-                  <span className="results-head__arrow" aria-hidden="true">
-                    →
-                  </span>
-                  <span className={result.to.type === 'station' ? 'num' : undefined}>{heading(result.to)}</span>
-                </h2>
-                <p className="results-head__detail">
-                  {result.date ? formatISODate(result.date) : 'Any day'}
-                  {routeDistance ? ` · ${formatKm(routeDistance)}` : ''}
-                  {isArea ? ' · area search' : ''}
-                </p>
+            <div className="results-head__sentinel" ref={sentinelRef} aria-hidden="true" />
+            <div className={`resultsbar${headStuck ? ' is-stuck' : ''}`} ref={barRef}>
+              <div className="results-head">
+                <div className="results-head__route">
+                  <h2 className="results-head__title">
+                    <span className={headFrom?.mono ? 'num' : undefined}>{headFrom?.text}</span>
+                    <span className="results-head__arrow" aria-hidden="true">
+                      →
+                    </span>
+                    <span className={headTo?.mono ? 'num' : undefined}>{headTo?.text}</span>
+                  </h2>
+                  {routeDetail && <p className="results-head__detail">{routeDetail}</p>}
+                </div>
+                {direct.length > 0 && <SortChips sort={query.sort} desc={query.desc} onChange={onSort} />}
               </div>
-              {direct.length > 0 && <SortChips sort={query.sort} desc={query.desc} onChange={onSort} />}
+
+              <DateStrip date={query.date} onPick={pickDate} />
             </div>
 
-            <DateStrip date={query.date} onPick={pickDate} />
+            {loading && <Skeleton />}
 
-            {result.trains.length > 0 && (
-              <div className="filterbar">
-                <input
-                  type="search"
-                  className="filterbar__input"
-                  placeholder="Filter by train name or number"
-                  value={filter}
-                  onChange={(event) => setFilter(event.target.value)}
-                  aria-label="Filter trains by name or number"
-                />
-              </div>
-            )}
+            {!loading && isArea && <ResolvedBar from={result.from} to={result.to} />}
 
-            {isArea && <ResolvedBar from={result.from} to={result.to} />}
-
-            {direct.length > 0 ? (
-              <section className="section">
+            {!loading && (direct.length > 0 ? (
+              <section className="section section--list">
                 <div className="section__head">
                   <h2 className="section__title">
                     {direct.length} {isArea ? '' : 'direct '}
@@ -445,11 +538,16 @@ export default function BestTrain({ theme, onToggleTheme }: { theme: 'light' | '
                         ? 'Nothing runs straight through, but nearby stations have options.'
                         : 'Nothing in the timetable connects these two directly.'}
                 </p>
+                {result.date && (
+                  <button type="button" className="notice__action" onClick={() => pickDate('')}>
+                    Show every day
+                  </button>
+                )}
               </div>
-            )}
+            ))}
 
-            {otherDays.length > 0 && (
-              <section className="section">
+            {!loading && otherDays.length > 0 && (
+              <section className={`section section--list${showOtherDays ? ' is-open' : ''}`}>
                 <button
                   type="button"
                   className="section__head section__head--button"
@@ -480,7 +578,7 @@ export default function BestTrain({ theme, onToggleTheme }: { theme: 'light' | '
               </section>
             )}
 
-            {gateways.length > 0 && (
+            {!loading && gateways.length > 0 && (
               <NearbyGateways
                 groups={gateways}
                 origin={result.from.stations[0]?.code ?? ''}

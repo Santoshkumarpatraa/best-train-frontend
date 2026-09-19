@@ -1,16 +1,18 @@
 import { Suspense, lazy, useEffect, useRef, useState } from 'react';
 import { getTrainRoute, type RouteStop, type TrainRouteResponse } from '../services/trainApi';
 import { DAY_LABELS, clock, formatKm, stationCase, toMinutes, trainName } from '../lib/format';
+import RoutePreview from './RoutePreview';
 
 const RouteMap = lazy(() => import('./RouteMap'));
 
+/** Above this both panes show, so the toggle is hidden and the map must mount unasked. */
+const BOTH_PANES = '(min-width: 901px)';
+
+const FOCUSABLE = 'a[href], button:not([disabled]), input, select, textarea, [tabindex]:not([tabindex="-1"])';
+
 type Detail = TrainRouteResponse['data'];
 
-/**
- * How long the train actually waits. The clock difference is authoritative;
- * the feed's `halt_time` is MM:SS (a 1-minute stop reads "01:00"), so it is
- * only a fallback for the rare stop with no usable arrival/departure pair.
- */
+/** Clock difference is authoritative; the feed's MM:SS `halt_time` is only a fallback. */
 function haltLabel(stop: RouteStop): string | null {
   const arrive = toMinutes(stop.arrival);
   const depart = toMinutes(stop.departure);
@@ -41,10 +43,36 @@ export default function TrainDetail({
   const [error, setError] = useState<string | null>(null);
   const [active, setActive] = useState<string | null>(null);
   const [view, setView] = useState<'list' | 'map'>('list');
+  // maplibre is ~285 KB gz, so it mounts only when asked - a wide screen counts as asking.
+  const [mapWanted, setMapWanted] = useState(() => window.matchMedia(BOTH_PANES).matches);
   const panel = useRef<HTMLDivElement>(null);
 
-  // Keyed by trainNumber upstream, so a different train remounts this and the
-  // state starts clean - no reset needed here.
+  // Widening the window reveals the map pane, so it has to mount then too.
+  useEffect(() => {
+    const query = window.matchMedia(BOTH_PANES);
+    const sync = () => {
+      if (query.matches) setMapWanted(true);
+    };
+    query.addEventListener('change', sync);
+    return () => query.removeEventListener('change', sync);
+  }, []);
+
+  useEffect(() => {
+    // Both chunks: RouteMap's maplibre import is nested, so fetching it alone is not enough.
+    const warm = () => {
+      void import('./RouteMap');
+      void import('maplibre-gl');
+    };
+    const idle = window.requestIdleCallback
+      ? window.requestIdleCallback(warm, { timeout: 1200 })
+      : window.setTimeout(warm, 1200);
+    return () => {
+      if (window.cancelIdleCallback) window.cancelIdleCallback(idle);
+      else window.clearTimeout(idle);
+    };
+  }, []);
+
+  // Keyed by trainNumber upstream, so a different train remounts this with clean state.
   useEffect(() => {
     const controller = new AbortController();
     getTrainRoute({ number: trainNumber, signal: controller.signal })
@@ -58,10 +86,39 @@ export default function TrainDetail({
     return () => controller.abort();
   }, [trainNumber]);
 
+  const closeRef = useRef(onClose);
   useEffect(() => {
+    closeRef.current = onClose;
+  }, [onClose]);
+
+  // Traps Tab inside the sheet and hands focus back to whatever opened it.
+  useEffect(() => {
+    const opener = document.activeElement as HTMLElement | null;
+
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose();
+      if (event.key === 'Escape') {
+        closeRef.current();
+        return;
+      }
+      if (event.key !== 'Tab' || !panel.current) return;
+
+      const focusable = [...panel.current.querySelectorAll<HTMLElement>(FOCUSABLE)].filter(
+        (el) => el.offsetParent !== null || el === document.activeElement,
+      );
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (!first) return;
+
+      const active = document.activeElement;
+      if (event.shiftKey && (active === first || active === panel.current)) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && active === last) {
+        event.preventDefault();
+        first.focus();
+      }
     };
+
     document.addEventListener('keydown', onKey);
     panel.current?.focus();
     const previous = document.body.style.overflow;
@@ -69,8 +126,9 @@ export default function TrainDetail({
     return () => {
       document.removeEventListener('keydown', onKey);
       document.body.style.overflow = previous;
+      opener?.focus?.();
     };
-  }, [onClose]);
+  }, []);
 
   const train = detail?.train;
   const stops = detail?.stops ?? [];
@@ -104,7 +162,11 @@ export default function TrainDetail({
                 type="button"
                 className={`segmented__btn${view === 'map' ? ' is-active' : ''}`}
                 aria-pressed={view === 'map'}
-                onClick={() => setView('map')}
+                onPointerEnter={() => setMapWanted(true)}
+                onClick={() => {
+                  setView('map');
+                  setMapWanted(true);
+                }}
               >
                 Map
               </button>
@@ -156,15 +218,20 @@ export default function TrainDetail({
                   onSelect={() => {
                     setActive(stop.code);
                     setView('map');
+                    setMapWanted(true);
                   }}
                 />
               ))}
             </ol>
 
             <div className="sheet__map">
-              <Suspense fallback={<div className="routemap routemap--empty">Loading map…</div>}>
-                <RouteMap stops={stops} activeCode={active} theme={theme} />
-              </Suspense>
+              {mapWanted ? (
+                <Suspense fallback={<RoutePreview stops={stops} />}>
+                  <RouteMap stops={stops} activeCode={active} theme={theme} />
+                </Suspense>
+              ) : (
+                <RoutePreview stops={stops} />
+              )}
             </div>
           </div>
         )}
@@ -187,9 +254,16 @@ function StopRow({
   onSelect: () => void;
 }) {
   const halt = haltLabel(stop);
+  // Stations without coordinates say so, rather than leaving a dead control.
+  const mapped = stop.lat !== null;
+  const Row = mapped ? 'button' : 'div';
+
   return (
     <li className={`stop${first || last ? ' is-terminus' : ''}${active ? ' is-active' : ''}`}>
-      <button type="button" className="stop__btn" onClick={onSelect} disabled={stop.lat === null}>
+      <Row
+        {...(mapped ? { type: 'button' as const, onClick: onSelect } : {})}
+        className={`stop__btn${mapped ? '' : ' stop__btn--static'}`}
+      >
         <span className="stop__rail" aria-hidden="true">
           <i className="stop__dot" />
         </span>
@@ -206,6 +280,7 @@ function StopRow({
             {stop.state ? <span>· {stop.state}</span> : null}
             {halt ? <span className="stop__halt">· {halt}</span> : null}
             {stop.boardingDisabled ? <span className="stop__no-board">· no boarding</span> : null}
+            {mapped ? null : <span>· not on the map</span>}
           </span>
         </span>
 
@@ -213,7 +288,7 @@ function StopRow({
           {stop.distance !== null ? `${stop.distance.toLocaleString('en-IN')} km` : ''}
           {stop.day && stop.day > 1 ? <em className="stop__day">day {stop.day}</em> : null}
         </span>
-      </button>
+      </Row>
     </li>
   );
 }

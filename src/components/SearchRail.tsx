@@ -47,7 +47,7 @@ export default function SearchRail({
           label="From"
           value={from}
           onChange={onFrom}
-          placeholder="Station, city, district or state"
+          placeholder="Where from? Station, city or area"
           invalid={problem === 'from'}
           inputRef={fromRef}
         />
@@ -65,13 +65,17 @@ export default function SearchRail({
           label="To"
           value={to}
           onChange={onTo}
-          placeholder="Station, city, district or state"
+          placeholder="Where to? Station, city or area"
           invalid={problem === 'to'}
         />
 
         <DateField value={date} onChange={onDate} />
 
-        <button type="submit" className="go" disabled={loading}>
+        <button
+          type="submit"
+          className={`go${loading ? ' is-loading' : ''}`}
+          disabled={loading || !from || !to}
+        >
           {loading ? 'Searching' : 'Find trains'}
         </button>
 

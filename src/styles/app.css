@@ -1,8 +1,4 @@
-/* ==========================================================================
-   Best Train - card-led layout.
-   Sticky glass nav → hero with stats → floating search card → journey cards.
-   Every block is fluid; breakpoints at 1100 / 900 / 720 / 560.
-   ========================================================================== */
+/* Best Train - card-led layout; breakpoints at 1100 / 900 / 720 / 560. */
 
 body {
   background-image: var(--grad-wash);
@@ -69,7 +65,6 @@ body {
 /* --- Day / night switch -------------------------------------------------- */
 
 .toggle {
-  margin-left: auto;
   display: inline-flex;
   align-items: center;
   padding: 3px;
@@ -139,7 +134,68 @@ body {
 
 /* --- Hero ---------------------------------------------------------------- */
 
+/* Artwork bleeds off the right edge while the copy stays inside the rail. */
+.hero {
+  position: relative;
+  overflow: hidden;
+}
+
+/* Shown only where the capped headline leaves a gutter; below ~1100px it sits under the copy. */
+.hero__art {
+  display: none;
+  position: absolute;
+  right: -4%;
+  /* Flush with the hero floor: any lower and the bogies and rail get cut. */
+  bottom: 0;
+  width: min(1040px, 105%);
+  height: auto;
+  z-index: 0;
+  color: var(--signal);
+  pointer-events: none;
+}
+
+/* Fade sits on the bodywork, not the <svg>: a parent opacity would dim the headlamp too. */
+.hero__art-body {
+  opacity: 0.1;
+}
+
+:root[data-theme='dark'] .hero__art-body {
+  opacity: 0.16;
+}
+
+/* Off in daylight; comes up with the night theme. */
+.hero__art-lamp {
+  opacity: 0;
+  transition: opacity 0.45s var(--ease);
+}
+
+:root[data-theme='dark'] .hero__art-lamp {
+  opacity: 1;
+}
+
+
+
+@media (min-width: 1100px) {
+  .hero__art {
+    /* Box matches the viewBox's ratio, so the whole trainset shows. */
+    display: block;
+  }
+}
+
+/* No gutter below 1100px, so a stubbier box crops to the front of the train. */
+@media (max-width: 1099px) {
+  .hero__art {
+    display: block;
+    right: 0;
+    bottom: 0;
+    width: min(280px, 74%);
+    height: 118px;
+  }
+}
+
 .hero__inner {
+  position: relative;
+  z-index: 1;
   max-width: var(--rail);
   margin: 0 auto;
   padding: clamp(48px, 8vw, 104px) 24px clamp(28px, 4vw, 48px);
@@ -203,12 +259,10 @@ body {
 
 /* --- Search card --------------------------------------------------------- */
 
+/* Scrolls away: the results bar pins in the same band, and two stacked bars leave no list. */
 .rail {
-  position: sticky;
-  top: 65px;
-  z-index: 30;
-  /* `margin: 0 auto` cancels cross-axis stretch on a flex item, so without an
-     explicit width this shrinks to its content instead of filling the rail. */
+  z-index: 35;
+  /* `margin: 0 auto` cancels flex stretch, so an explicit width is needed to fill the rail. */
   width: 100%;
   max-width: var(--rail);
   margin: 0 auto;
@@ -427,6 +481,11 @@ body {
   transform: rotate(180deg);
 }
 
+/* The signal-coloured ring vanishes into this button and reads as a second error. */
+.go:focus-visible {
+  outline-color: var(--ink);
+}
+
 .go {
   height: 56px;
   padding: 0 32px;
@@ -444,10 +503,17 @@ body {
   filter: saturate(1.1);
 }
 
+/* Nothing to search for yet - matches the train-number lookup. */
 .go:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+/* Disabled because a search is already running, which is a wait, not a block. */
+.go.is-loading:disabled {
   opacity: 0.65;
   cursor: progress;
-  box-shadow: none;
 }
 
 /* Desktop fields are easy to edit in place; Clear earns its space on mobile. */
@@ -473,11 +539,6 @@ body {
   cursor: default;
 }
 
-.field__hint {
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  color: var(--signal);
-}
 
 /* --- Page shell ---------------------------------------------------------- */
 
@@ -495,42 +556,55 @@ body {
   flex: 1 0 auto;
 }
 
+/* The install prompt is fixed to the bottom, so the page must stop short of it. */
+body.has-install .foot {
+  padding-bottom: calc(112px + env(safe-area-inset-bottom, 0px));
+}
+
 .section + .section,
 .section + .notice,
 .notice + .section {
   margin-top: clamp(32px, 4vw, 56px);
 }
 
+/* Not pinned: a third tier would cost half a phone viewport; the band carries it instead. */
+/* Pinned under the results bar, whose height is measured because it moves. */
 .section__head {
+  position: sticky;
+  top: calc(var(--nav-h) + var(--results-bar-h, 0px));
+  z-index: 20;
   display: block;
   width: 100%;
   text-align: left;
-  padding-bottom: 20px;
+  padding: 10px 0 16px;
+  background: var(--paper);
 }
 
+/* Weighted like the plain headings, not a card; stays unpinned, being a control. */
 .section__head--button {
+  position: static;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 18px;
-  padding: 22px 24px;
-  border-radius: var(--r-3);
-  border: 1px solid var(--rule);
-  background: var(--paper-2);
-  box-shadow: var(--lift-2);
-  transition: border-color 0.18s var(--ease), box-shadow 0.18s var(--ease);
+  padding: 10px 0 16px;
+  border: 0;
+  border-top: 1px solid var(--rule);
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  padding-top: 20px;
 }
 
-/* The base header uses padding-bottom for this gap, which the button variant
-   overrides - so the expanded rows need their own separation. */
+/* The button variant overrides the base padding-bottom, so expanded rows need their own gap. */
 .section__head--button + .rows,
 .section__head--button + .gateways {
   margin-top: 16px;
 }
 
-.section__head--button:hover {
-  border-color: var(--rule-2);
-  box-shadow: var(--lift-3);
+.section__head--button:hover .section__toggle {
+  border-color: var(--signal);
+  color: var(--signal);
 }
 
 .section__title {
@@ -573,13 +647,65 @@ body {
 
 /* --- Results header ------------------------------------------------------ */
 
+/* Route, sort and date pin together; `is-stuck` comes from a sentinel, as CSS cannot tell. */
+.resultsbar {
+  position: sticky;
+  top: var(--nav-h);
+  z-index: 30;
+  padding-bottom: 10px;
+  margin-bottom: 18px;
+  background: var(--paper);
+}
+
+/* The gutter is padding, so the backing must reach past it or cards show at the edges. */
+.resultsbar::before {
+  content: '';
+  position: absolute;
+  inset: 0 -24px;
+  z-index: -1;
+  background: var(--paper);
+  border-bottom: 1px solid transparent;
+  transition: border-color 0.2s var(--ease);
+}
+
+.resultsbar.is-stuck::before {
+  border-bottom-color: var(--rule);
+}
+
 .results-head {
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
   gap: 24px;
   flex-wrap: wrap;
-  margin-bottom: 26px;
+  padding: 14px 0 10px;
+  transition: padding 0.2s var(--ease);
+}
+
+.resultsbar.is-stuck .results-head__title {
+  font-size: clamp(20px, 2.4vw, 26px);
+}
+
+/* Pinned, the bar is chrome, not a heading: it gives back every pixel it can. */
+.resultsbar.is-stuck .results-head {
+  padding: 8px 0 6px;
+}
+
+.resultsbar.is-stuck .results-head__detail {
+  display: none;
+}
+
+@media (max-width: 560px) {
+  .resultsbar.is-stuck .results-head {
+    padding: 10px 0 8px;
+  }
+}
+
+.results-head__sentinel {
+  height: 1px;
+  margin-bottom: -1px;
+  /* Trips one nav-height early, so the class lands as the header pins. */
+  scroll-margin-top: var(--nav-h);
 }
 
 .results-head__title {
@@ -623,12 +749,12 @@ body {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  min-height: 42px;
-  padding: 0 18px;
+  min-height: 36px;
+  padding: 0 14px;
   border: 1px solid var(--rule-2);
   border-radius: var(--r-pill);
   background: var(--paper-2);
-  font-size: 15px;
+  font-size: 14px;
   color: var(--ink-2);
   transition: border-color 0.16s var(--ease), color 0.16s var(--ease), transform 0.16s var(--ease);
 }
@@ -661,11 +787,13 @@ body {
 .datestrip {
   display: flex;
   gap: 8px;
-  margin-bottom: 14px;
   padding-bottom: 4px;
   overflow-x: auto;
   overscroll-behavior-x: contain;
   scrollbar-width: none;
+  /* The chips outrun the rail and the scrollbar is hidden, so the fade says it continues. */
+  -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 44px), transparent);
+  mask-image: linear-gradient(90deg, #000 calc(100% - 44px), transparent);
 }
 
 .datestrip::-webkit-scrollbar {
@@ -674,12 +802,12 @@ body {
 
 .datechip {
   flex: none;
-  min-height: 42px;
-  padding: 0 18px;
+  min-height: 36px;
+  padding: 0 14px;
   border-radius: var(--r-pill);
   border: 1px solid var(--rule-2);
   background: var(--paper-2);
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 500;
   color: var(--ink-2);
   white-space: nowrap;
@@ -705,34 +833,6 @@ body {
   border-color: var(--rule-2);
 }
 
-.filterbar {
-  position: relative;
-  display: flex;
-  align-items: center;
-  margin-bottom: 20px;
-}
-
-.filterbar__input {
-  width: 100%;
-  height: 48px;
-  padding: 0 72px 0 18px;
-  border-radius: var(--r-3);
-  border: 1px solid var(--rule);
-  background: var(--paper-2);
-  font-size: 15px;
-  outline: none;
-  transition: border-color 0.16s var(--ease), box-shadow 0.16s var(--ease);
-}
-
-.filterbar__input::placeholder {
-  color: var(--ink-3);
-}
-
-.filterbar__input:focus {
-  border-color: var(--signal);
-  box-shadow: 0 0 0 4px var(--signal-tint);
-}
-
 
 /* --- Journey cards ------------------------------------------------------- */
 
@@ -745,8 +845,8 @@ body {
   position: relative;
   min-width: 0;
   display: grid;
-  gap: 20px;
-  padding: 24px 26px;
+  gap: 14px;
+  padding: 18px 22px;
   border-radius: var(--r-4);
   border: 1px solid var(--rule);
   background: var(--paper-2);
@@ -772,13 +872,17 @@ body {
   display: grid;
   gap: 2px;
   min-width: 0;
+  flex: 1 1 auto;
 }
 
 .jcard__badges {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: 10px;
-  flex: none;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+  flex: 0 1 auto;
+  min-width: 0;
 }
 
 .jcard__routebtn {
@@ -819,13 +923,14 @@ body {
   color: var(--ink-3);
 }
 
+/* Same metrics as .tag - a row carried three different pill shapes before. */
 .service {
   flex: none;
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  padding: 6px 12px;
+  padding: 5px 11px;
   border-radius: var(--r-pill);
   border: 1px solid transparent;
 }
@@ -835,9 +940,11 @@ body {
   color: var(--signal);
 }
 
+/* Neutral: the green belongs to the fastest badge, and two greens read as two claims. */
 .service--fast {
-  background: var(--go-tint);
-  color: var(--go);
+  background: var(--paper-3);
+  color: var(--ink-2);
+  border-color: var(--rule);
 }
 
 .service--express {
@@ -847,17 +954,18 @@ body {
 }
 
 .service--local {
-  background: var(--halt-tint);
-  color: var(--halt);
+  background: var(--paper-3);
+  color: var(--ink-2);
+  border-color: var(--rule);
 }
 
 /* The journey strip: the one thing a train card exists to show. */
 .jcard__journey {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(150px, 1.2fr) minmax(0, 1fr);
-  gap: 20px;
+  gap: 16px;
   align-items: start;
-  padding: 20px 22px;
+  padding: 14px 18px;
   border-radius: var(--r-3);
   background: var(--paper-3);
 }
@@ -904,6 +1012,11 @@ body {
   min-width: 0;
 }
 
+/* Mirrored ends; reordering one child, not reversing the row, keeps justify-content honest. */
+.jcard__end--arrive .jcard__code {
+  order: 1;
+}
+
 .jcard__end--arrive .jcard__place,
 .jcard__end--arrive .jcard__timeline {
   justify-content: flex-end;
@@ -939,8 +1052,9 @@ body {
   font-weight: 500;
 }
 
+/* Was --rule-2, a border colour at about 1.9:1 - unreadable for the one fact most people came to check. */
 .days__d {
-  color: var(--rule-2);
+  color: var(--ink-3);
 }
 
 .days__d.is-on {
@@ -993,21 +1107,6 @@ body {
   color: var(--ink-3);
 }
 
-.jcard__meta {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  flex-wrap: wrap;
-  min-height: 30px;
-}
-
-.jcard__right {
-  display: inline-flex;
-  align-items: center;
-  gap: 14px;
-}
-
 
 .week {
   display: inline-flex;
@@ -1039,19 +1138,6 @@ body {
   border-color: var(--rule-2);
 }
 
-
-.jcard__facts {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.jcard__speed {
-  font-size: 13px;
-  color: var(--ink-3);
-}
-
 .tag {
   font-size: 11px;
   font-weight: 700;
@@ -1075,6 +1161,150 @@ body {
 .tag--plain {
   border-color: var(--rule-2);
   color: var(--ink-3);
+}
+
+/* --- Grouped result lists ------------------------------------------------ */
+
+/* Heading and rows are one card; no `overflow: hidden`, or the sticky heading never pins. */
+.section--list {
+  border: 1px solid var(--rule);
+  border-radius: var(--r-4);
+  background: var(--paper-2);
+  box-shadow: var(--lift-2);
+}
+
+/* The band and accent mark, not the type, say "heading" rather than "first row". */
+.section--list .section__head {
+  padding: 16px 22px 14px;
+  background: var(--band);
+  border-radius: var(--r-4) var(--r-4) 0 0;
+}
+
+.section--list .section__title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.section--list .section__title::before {
+  content: '';
+  flex: none;
+  width: 4px;
+  height: 0.95em;
+  border-radius: var(--r-pill);
+  background: var(--grad-signal);
+}
+
+/* Held under the title so the two lines share an edge and the mark sits in the gutter. */
+.section--list .section__sub {
+  padding-left: 14px;
+}
+
+/* The collapsed toggle is the whole card, so it owns every corner until the rows appear beneath it. */
+.section--list .section__head--button {
+  position: sticky;
+  top: calc(var(--nav-h) + var(--results-bar-h, 0px));
+  z-index: 20;
+  width: 100%;
+  border-top: 0;
+  padding: 16px 22px;
+  border-radius: var(--r-4);
+  background: var(--band);
+}
+
+.section--list .section__head,
+.section--list.is-open .section__head--button {
+  border-bottom: 1px solid var(--rule);
+}
+
+.section--list.is-open .section__head--button {
+  border-radius: var(--r-4) var(--r-4) 0 0;
+}
+
+/* Rows are divided by a rule rather than by a gap, which is what made each one read as its own card. */
+.section--list .rows {
+  gap: 0;
+}
+
+.section--list .jcard {
+  border: 0;
+  border-top: 1px solid var(--rule);
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+}
+
+.section--list .jcard:first-child {
+  border-top: 0;
+}
+
+/* Only a hover fill needs the corners, and only on a row truly at the card's bottom. */
+.section--list .rows > .jcard:last-child,
+.section--list .gateways > .gateway:last-child {
+  border-radius: 0 0 var(--r-4) var(--r-4);
+}
+
+.section--list .jcard:hover {
+  transform: none;
+  box-shadow: none;
+  border-color: var(--rule);
+  background: var(--hover);
+}
+
+.section--list .section__head--button:hover {
+  background: var(--band-2);
+}
+
+/* Gateways group the same way: one card, each gateway a row inside it. */
+.section--list .gateways {
+  gap: 0;
+}
+
+.section--list .gateway {
+  border: 0;
+  border-top: 1px solid var(--rule);
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  overflow: visible;
+}
+
+/* Third tier: the gateway you are inside stays on screen while its trains scroll. */
+.section--list .gateway__head {
+  position: sticky;
+  top: calc(var(--nav-h) + var(--results-bar-h, 0px) + var(--gateway-head-h, 0px));
+  z-index: 10;
+  background: var(--paper-2);
+}
+
+/* Open, it takes the section band a step deeper, or head and body are indistinguishable. */
+.section--list .gateway.is-open .gateway__head {
+  border-bottom: 1px solid var(--rule);
+  background: var(--band-2);
+}
+
+/* Without clipping, the open body rounds its own corners when it ends the card. */
+.section--list .gateways > .gateway:last-child .gateway__body {
+  border-radius: 0 0 var(--r-4) var(--r-4);
+}
+
+.section--list .gateway:first-child {
+  border-top: 0;
+}
+
+.section--list .gateway.is-open,
+.section--list .gateway:hover {
+  border-color: var(--rule);
+  box-shadow: none;
+}
+
+.section--list .gateway__head:hover {
+  background: var(--hover);
+}
+
+/* A level deeper again, so it needs its own surface or the journey strip merges in. */
+.section--list .gateway__body .jcard__journey {
+  background: var(--paper-2);
 }
 
 /* --- Nearby gateways ----------------------------------------------------- */
@@ -1170,13 +1400,14 @@ body {
 
 /* --- Resolved area summary ----------------------------------------------- */
 
+/* Two short columns and a note, sized to content; the full rail was mostly empty. */
 .resolved {
   display: flex;
   flex-wrap: wrap;
   align-items: flex-start;
-  gap: 20px 40px;
-  padding: 20px 24px;
-  margin-bottom: 26px;
+  gap: 14px 32px;
+  padding: 14px 20px;
+  margin-bottom: 20px;
   border-radius: var(--r-3);
   border: 1px solid var(--rule);
   background: var(--paper-2);
@@ -1184,8 +1415,10 @@ body {
 }
 
 .resolved__side {
-  display: grid;
-  gap: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px 12px;
   min-width: 0;
 }
 
@@ -1200,8 +1433,8 @@ body {
 .resolved__label {
   display: flex;
   align-items: center;
-  gap: 10px;
-  font-size: 17px;
+  gap: 8px;
+  font-size: 15px;
   font-weight: 700;
   letter-spacing: -0.02em;
 }
@@ -1236,15 +1469,14 @@ body {
   gap: 6px;
 }
 
+/* A tooltip is nothing on a touch screen, so the station name sits beside the code. */
 .resolved__chip {
   font-size: 12px;
   font-weight: 500;
-  letter-spacing: 0.05em;
-  padding: 5px 10px;
+  padding: 4px 9px;
   border-radius: var(--r-1);
   background: var(--paper-3);
   color: var(--ink-2);
-  cursor: help;
 }
 
 .resolved__empty {
@@ -1272,18 +1504,23 @@ body {
   margin-bottom: 20px;
 }
 
+/* Chips size to their route and wrap; a fixed column was too narrow or half empty. */
 .intro__routes {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
-  gap: 14px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
 }
 
 .route-chip {
   display: flex;
   align-items: center;
   gap: 10px;
+  /* Sized by content, capped at the row, so a long name truncates inside the card. */
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 100%;
   min-height: 62px;
-  padding: 0 20px;
+  padding: 0 18px;
   border: 1px solid var(--rule);
   border-radius: var(--r-3);
   background: var(--paper-2);
@@ -1301,7 +1538,16 @@ body {
   box-shadow: var(--lift-3);
 }
 
+/* Real station names are long, so each end truncates inside the card. */
+.route-chip > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .route-chip span[aria-hidden] {
+  flex: none;
   color: var(--signal);
 }
 
@@ -1334,6 +1580,138 @@ body {
   text-wrap: pretty;
 }
 
+/* --- Train number lookup ------------------------------------------------- */
+
+.lookup {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.lookup__input {
+  flex: 0 1 200px;
+  min-width: 0;
+  height: 56px;
+  padding: 0 20px;
+  border-radius: var(--r-3);
+  border: 1px solid var(--rule-2);
+  background: var(--paper-2);
+  font-size: 20px;
+  letter-spacing: 0.06em;
+  outline: none;
+  transition: border-color 0.16s var(--ease), box-shadow 0.16s var(--ease);
+}
+
+.lookup__input::placeholder {
+  color: var(--ink-3);
+  letter-spacing: 0.06em;
+}
+
+.lookup__input:focus {
+  border-color: var(--signal);
+  box-shadow: 0 0 0 4px var(--signal-tint);
+}
+
+.lookup__go {
+  flex: none;
+  height: 56px;
+  padding: 0 26px;
+  border-radius: var(--r-3);
+  background: var(--grad-signal);
+  color: #fff;
+  font-size: 16px;
+  font-weight: 600;
+  box-shadow: var(--lift-signal);
+  transition: filter 0.18s var(--ease), opacity 0.18s var(--ease);
+}
+
+.lookup__go:hover:not(:disabled) {
+  filter: brightness(1.05);
+}
+
+/* Nothing to look up yet - stays visible so the control does not jump. */
+.lookup__go:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+/* Matches up as you type, so a half-remembered number is enough. */
+.lookup__list {
+  margin: 14px 0 0;
+  padding: 8px;
+  list-style: none;
+  max-width: 520px;
+  background: var(--paper-2);
+  border: 1px solid var(--rule);
+  border-radius: var(--r-3);
+  box-shadow: var(--lift-2);
+  animation: rise 0.18s var(--ease-soft) both;
+}
+
+/* Number and route are fixed enough to reserve, so the name takes what is left. */
+.lookup__option {
+  width: 100%;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: var(--r-2);
+  text-align: left;
+  transition: background 0.12s var(--ease);
+}
+
+.lookup__option:hover {
+  background: var(--hover);
+}
+
+.lookup__option-num {
+  flex: none;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.lookup__option-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 14px;
+  color: var(--ink-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lookup__option-route {
+  flex: none;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  font-size: 12px;
+  color: var(--ink-3);
+}
+
+.lookup__option-arrow {
+  color: var(--signal);
+}
+
+.lookup__hint {
+  margin-top: 12px;
+  font-size: 14px;
+  color: var(--ink-3);
+}
+
+@media (max-width: 560px) {
+  .lookup__input {
+    flex: 1 1 140px;
+  }
+
+  .lookup__go {
+    flex: 1 1 auto;
+    padding: 0 18px;
+  }
+}
+
 /* --- Notices and skeleton ------------------------------------------------ */
 
 .notice {
@@ -1359,19 +1737,40 @@ body {
   max-width: 62ch;
 }
 
-.skeleton {
+/* A travel day is the usual cause of an empty list, and the one thing undoable here. */
+.notice__action {
+  margin-top: 16px;
+  min-height: 40px;
+  padding: 0 18px;
+  border-radius: var(--r-pill);
+  border: 1px solid var(--rule-2);
+  background: var(--paper-2);
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ink);
+  transition: border-color 0.16s var(--ease), color 0.16s var(--ease);
+}
+
+.notice__action:hover {
+  border-color: var(--signal);
+  color: var(--signal);
+}
+
+/* Wears the result card's own shell - see Skeleton.tsx. */
+.skeleton .section__head {
   display: grid;
-  gap: 16px;
+  gap: 10px;
 }
 
 .skeleton__row {
   display: grid;
-  gap: 20px;
-  padding: 24px 26px;
-  border-radius: var(--r-4);
-  border: 1px solid var(--rule);
-  background: var(--paper-2);
-  box-shadow: var(--lift-2);
+  gap: 14px;
+  padding: 18px 22px;
+  border-top: 1px solid var(--rule);
+}
+
+.skeleton__row:first-child {
+  border-top: 0;
 }
 
 .skeleton__id {
@@ -1385,14 +1784,9 @@ body {
   grid-template-columns: auto 1fr auto;
   gap: 24px;
   align-items: center;
-  padding: 20px 22px;
+  padding: 14px 18px;
   border-radius: var(--r-3);
   background: var(--paper-3);
-}
-
-.skeleton__meta {
-  display: flex;
-  gap: 12px;
 }
 
 .bone {
@@ -1406,6 +1800,16 @@ body {
 
 .bone--sm {
   width: 64px;
+}
+
+.bone--head {
+  width: 180px;
+  height: 22px;
+}
+
+.bone--sub {
+  width: 260px;
+  max-width: 100%;
 }
 
 .bone--md {
@@ -1463,7 +1867,8 @@ body {
     grid-area: swap;
   }
 
-  .rail__grid > .combo:last-of-type {
+  /* Not `:last-of-type` - that keys off the tag, and the last div is the date field. */
+  .rail__grid > .swap + .combo {
     grid-area: to;
   }
 
@@ -1473,14 +1878,14 @@ body {
 
   .rail__grid > .go {
     grid-area: go;
+    /* A 1fr column made this button wider than everything it sits beside. */
+    justify-self: end;
+    width: 100%;
+    max-width: 300px;
   }
 }
 
 @media (max-width: 900px) {
-  .rail {
-    position: static;
-  }
-
   .jcard__journey {
     grid-template-columns: 1fr;
     gap: 16px;
@@ -1491,12 +1896,12 @@ body {
     text-align: left;
   }
 
-  .jcard__end--arrive .jcard__place {
+  .jcard__end--arrive .jcard__place,
+  .jcard__end--arrive .jcard__timeline {
     justify-content: flex-start;
   }
 
-  /* Once the journey stacks, the middle row must wrap rather than force the
-     card wider than its column. */
+  /* Once the journey stacks, the middle row must wrap rather than force the card wider than its column. */
   .jcard__mid {
     display: flex;
     flex-wrap: wrap;
@@ -1522,15 +1927,15 @@ body {
     padding-right: 16px;
   }
 
+  /* Fields full width; the actions share the last row, Clear taking the narrower share. */
   .rail__grid {
-    grid-template-columns: minmax(0, 1fr);
+    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
     grid-template-areas:
-      'from'
-      'swap'
-      'to'
-      'date'
-      'go'
-      'clear';
+      'from from'
+      'swap swap'
+      'to to'
+      'date date'
+      'go clear';
     padding: 16px;
     gap: 10px;
   }
@@ -1539,30 +1944,151 @@ body {
     display: block;
     grid-area: clear;
     width: 100%;
+    /* Matches the submit button it now sits beside. */
+    height: 56px;
   }
 
-  /* Its own row, so both station fields run the full width like the date. */
+  /* Straddles the seam instead of taking a row; negative margins collapse that row. */
   .rail__grid > .swap {
     grid-area: swap;
     justify-self: center;
-    height: 40px;
-    width: 40px;
-    margin: -6px 0;
+    z-index: 2;
+    height: 48px;
+    width: 48px;
+    /* Asymmetric: the To label sits below the seam, so an even collapse hangs it too high. */
+    margin: -13px 0 -35px;
+    border-radius: var(--r-pill);
+    background: var(--paper-2);
+    box-shadow: 0 0 0 5px var(--paper-2);
   }
 
   .go {
     width: 100%;
   }
 
+  /* Two tight rows - route over sort - so pinning this costs little of the screen the train list needs. */
   .results-head {
-    align-items: flex-start;
-    flex-direction: column;
-    gap: 16px;
+    display: grid;
+    align-items: start;
+    gap: 8px;
+    margin-bottom: 6px;
+    padding: 10px 0 0;
+  }
+
+  .resultsbar {
+    padding-bottom: 8px;
+    margin-bottom: 14px;
+  }
+
+  /* Three rows are pinned here - the list below needs what is left. */
+  .section__head {
+    padding: 8px 0 12px;
+  }
+
+  .section--list .section__head,
+  .section--list .section__head--button {
+    padding: 12px 14px 10px;
+  }
+
+  .section__title {
+    font-size: 17px;
+  }
+
+  .section__sub {
+    font-size: 13px;
+    margin-top: 3px;
+  }
+
+  /* The full-bleed backing has to stop at the narrower gutter, or it pushes the page sideways. */
+  .resultsbar::before {
+    inset: 0 -16px;
+  }
+
+  .results-head__route {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 6px 12px;
+    flex-wrap: wrap;
+  }
+
+  .results-head__title,
+  .resultsbar.is-stuck .results-head__title {
+    font-size: 20px;
+    gap: 8px;
+  }
+
+  .results-head__detail {
+    margin-top: 0;
+    font-size: 12px;
+  }
+
+  .chips {
+    width: 100%;
+    gap: 6px;
+  }
+
+  .chip,
+  .datechip {
+    min-height: 38px;
+    padding: 0 14px;
+    font-size: 13px;
   }
 
   .jcard {
-    padding: 16px;
-    gap: 12px;
+    padding: 14px;
+    gap: 10px;
+  }
+
+  /* Superfast/Express is the least of what a phone-sized card has room for. */
+  .jcard__badges .service {
+    display: none;
+  }
+
+  /* Tags beside the number and the name on its own row, so the header is always two lines. */
+  .jcard__top {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    align-items: center;
+    column-gap: 8px;
+    row-gap: 2px;
+  }
+
+  .jcard__id {
+    display: contents;
+  }
+
+  .jcard__num {
+    grid-column: 1;
+    grid-row: 1;
+    white-space: nowrap;
+  }
+
+  .jcard__name {
+    grid-column: 1 / 3;
+    grid-row: 2;
+  }
+
+  .jcard__badges {
+    grid-column: 2;
+    grid-row: 1;
+    gap: 6px;
+  }
+
+  /* Spanning both rows keeps it off the tag row's height. */
+  .jcard__routebtn {
+    grid-column: 3;
+    grid-row: 1 / 3;
+  }
+
+  .jcard__routebtn {
+    width: 36px;
+    height: 36px;
+  }
+
+  .tag {
+    font-size: 10px;
+    padding: 4px 9px;
   }
 
   .jcard__journey {
@@ -1579,21 +2105,95 @@ body {
     font-size: 13px;
   }
 
-  .jcard__meta {
-    min-height: 0;
+  /* `display: contents` puts both times on one row and both stations on the next. */
+  .jcard__journey {
+    grid-template-columns: minmax(0, 1fr) minmax(0, auto) minmax(0, 1fr);
+    gap: 4px 10px;
+    align-items: center;
+    padding: 10px 12px;
+  }
+
+  .jcard__end {
+    display: contents;
+  }
+
+  .jcard__end .jcard__timeline {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .jcard__end .jcard__place {
+    grid-column: 1;
+    grid-row: 2;
+    margin-top: 0;
+  }
+
+  .jcard__end--arrive .jcard__timeline {
+    grid-column: 3;
+    grid-row: 1;
+    /* Back to three columns, so back to packing right - see the place below. */
+    justify-content: flex-end;
+  }
+
+  .jcard__end--arrive .jcard__place {
+    grid-column: 3;
+    grid-row: 2;
+    /* The stacked layout left-packs this; in three columns it must pack right again. */
+    justify-content: flex-end;
+  }
+
+  .jcard__mid {
+    display: grid;
+    grid-column: 2;
+    grid-row: 1 / 3;
+    justify-items: center;
+    align-content: center;
+    gap: 4px;
+    padding-top: 0;
+    min-width: 0;
+  }
+
+  .jcard__track {
+    display: none;
+  }
+
+  .jcard__dur {
+    padding: 3px 10px;
+    font-size: 13px;
+  }
+
+  .jcard__time {
+    font-size: 22px;
   }
 
   .jcard__name {
-    font-size: 17px;
+    font-size: 16px;
   }
 
+  /* Route over facts, toggle held right across both; wrapping dropped it bottom-left. */
   .gateway__head {
-    flex-wrap: wrap;
-    padding: 18px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 8px 14px;
+    padding: 16px;
+  }
+
+  .gateway__route {
+    grid-column: 1;
+    grid-row: 1;
   }
 
   .gateway__facts {
-    width: 100%;
+    grid-column: 1;
+    grid-row: 2;
+    flex-wrap: wrap;
+    gap: 6px 14px;
+  }
+
+  .gateway__toggle {
+    grid-column: 2;
+    grid-row: 1 / 3;
   }
 
   .resolved {
@@ -1605,24 +2205,22 @@ body {
     margin-left: 0;
   }
 
-  .intro__routes {
-    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-  }
 }
 
 @media (max-width: 560px) {
-  .hero__stats {
-    gap: 14px 28px;
+  .route-chip {
+    min-height: 54px;
+    padding: 0 16px;
+    font-size: 15px;
   }
 
-  .chips {
-    width: 100%;
+  .hero__stats {
+    gap: 14px 28px;
   }
 
   .chip {
     flex: 1 1 auto;
     justify-content: center;
-    padding: 0 12px;
   }
 
   .intro__grid > div {
@@ -1646,8 +2244,7 @@ body {
 
 /* Everything above the overlay stays selectable and hoverable. */
 .jcard__top,
-.jcard__journey,
-.jcard__meta {
+.jcard__journey {
   position: relative;
   z-index: 2;
   pointer-events: none;
@@ -1838,13 +2435,14 @@ body {
   transition: background 0.14s var(--ease);
 }
 
-.stop__btn:hover:not(:disabled) {
+.stop__btn:hover:not(.stop__btn--static) {
   background: var(--hover);
 }
 
-.stop__btn:disabled {
+/* A stop with nothing to point at is text rather than a dead button. */
+.stop__btn--static {
   cursor: default;
-  opacity: 0.6;
+  color: var(--ink-2);
 }
 
 .stop.is-active .stop__btn {
@@ -1977,6 +2575,54 @@ body {
   background: var(--paper-3);
 }
 
+.routepreview {
+  display: grid;
+  place-items: center;
+  padding: 18px;
+}
+
+/* The preview covers the live map until tiles arrive, so it must not swallow taps. */
+.routemap + .routepreview {
+  pointer-events: none;
+}
+
+.routepreview svg {
+  width: 100%;
+  height: 100%;
+  max-width: 420px;
+}
+
+.routepreview__line {
+  fill: none;
+  stroke: var(--signal);
+  stroke-width: 1.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  opacity: 0.85;
+}
+
+.routepreview__stop {
+  fill: var(--ink-3);
+  opacity: 0.55;
+}
+
+.routepreview__end {
+  fill: var(--signal);
+}
+
+.routepreview__note {
+  position: absolute;
+  left: 50%;
+  bottom: 14px;
+  transform: translateX(-50%);
+  font-size: 12px;
+  color: var(--ink-3);
+  background: var(--paper-2);
+  border: 1px solid var(--rule);
+  border-radius: var(--r-pill);
+  padding: 4px 12px;
+}
+
 .routemap--empty {
   position: absolute;
   inset: 0;
@@ -1991,16 +2637,14 @@ body {
 @media (max-width: 900px) {
   .sheet__panel {
     width: 100%;
-    /* A fixed height, not max-height: the panel must not resize when the
-       Stops/Map toggle swaps panes. */
+    /* A fixed height, not max-height: the panel must not resize when the Stops/Map toggle swaps panes. */
     height: 92dvh;
     max-height: 92dvh;
     margin-bottom: 0;
     border-radius: var(--r-4) var(--r-4) 0 0;
   }
 
-  /* This is the primary way out of the sheet on mobile, so it needs a real
-     tap target even though the bar itself is thin. */
+  /* The primary way out of the sheet on mobile, so it needs a real tap target. */
   .sheet__handle {
     display: grid;
     place-items: center;
@@ -2317,6 +2961,11 @@ body {
   gap: 2px;
 }
 
+/* The rows exist for the grid roles; the cells stay in the seven columns. */
+.cal__row {
+  display: contents;
+}
+
 .cal__wd {
   display: grid;
   place-items: center;
@@ -2327,7 +2976,12 @@ body {
   color: var(--ink-3);
 }
 
+.cal__grid [role='gridcell'] {
+  display: block;
+}
+
 .cal__day {
+  width: 100%;
   height: 38px;
   display: grid;
   place-items: center;
@@ -2397,5 +3051,96 @@ body {
     left: 0;
     right: 0;
     width: auto;
+  }
+}
+
+/* --- Install control ----------------------------------------------------- */
+
+.nav__actions {
+  /* Pushed to the far end of the bar, away from the wordmark. */
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.installbtn {
+  position: relative;
+}
+
+.installbtn__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 38px;
+  padding: 0 14px;
+  border: 1px solid var(--rule);
+  border-radius: var(--r-pill);
+  background: var(--paper-2);
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.18s var(--ease), background 0.18s var(--ease);
+}
+
+.installbtn__btn:hover {
+  border-color: var(--signal);
+  color: var(--signal);
+}
+
+.installbtn__btn svg {
+  width: 17px;
+  height: 17px;
+}
+
+.installbtn__help {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  z-index: 60;
+  width: min(300px, calc(100vw - 32px));
+  padding: 16px 18px;
+  background: var(--paper-2);
+  border: 1px solid var(--rule);
+  border-radius: var(--r-3);
+  box-shadow: var(--lift-2);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.installbtn__help ol {
+  margin: 10px 0 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 7px;
+  color: var(--ink-2);
+}
+
+.installbtn__share {
+  display: inline-flex;
+  vertical-align: -4px;
+  margin: 0 3px;
+}
+
+.installbtn__share svg {
+  width: 16px;
+  height: 16px;
+  color: var(--signal);
+}
+
+.installbtn__note {
+  margin-top: 12px;
+  font-size: 12px;
+  color: var(--ink-3);
+}
+
+@media (max-width: 560px) {
+  .installbtn__btn span {
+    display: none;
+  }
+
+  .installbtn__btn {
+    padding: 0 11px;
   }
 }

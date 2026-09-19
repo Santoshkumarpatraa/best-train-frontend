@@ -33,9 +33,7 @@ function parseDuration(value: string | null | undefined): number | null {
 }
 
 export function durationMinutes(train: Train): number | null {
-  // The API derives this from day_count, so it is the only value that is right
-  // for a journey crossing midnight - subtracting clock times here cannot see
-  // the day, and turns a 25h50m run into 1h50m.
+  // Derived from day_count upstream: subtracting clock times turns 25h50m into 1h50m.
   const stated = parseDuration(train.duration);
   if (stated !== null) return stated;
 
@@ -86,10 +84,7 @@ export function frequencyLabel(train: Train): string {
 
 export type TrainTag = { label: string; tone: 'go' | 'halt' | 'plain' };
 
-/**
- * Tags are relative to the result set, so "Fastest" means fastest of what is
- * on screen - computed once per list rather than per row.
- */
+/** Relative to the result set: "Fastest" means fastest of what is on screen. */
 export function tagsFor(train: Train, set: TrainSetStats): TrainTag[] {
   const tags: TrainTag[] = [];
   const mins = durationMinutes(train);
@@ -156,10 +151,7 @@ export function stationCase(name: string): string {
     .trim();
 }
 
-/**
- * The upstream feed clips train names at 15 characters, so most of them lose
- * the tail of "EXPRESS". Only the unambiguous suffixes are restored.
- */
+/** The feed clips names at 15 characters; only unambiguous "EXPRESS" tails are restored. */
 const CLIPPED_SUFFIX = /\b(EXPRES{1,2}|EXPRE|EXPR|EXP|EX)$/;
 
 export function trainName(raw: string): string {
@@ -194,11 +186,7 @@ const NAMED_CLASSES: Array<[RegExp, TrainClass]> = [
   [/SPECIAL|\bSPL\b/i, { label: 'Special', tone: 'express' }],
 ];
 
-/**
- * Indian Railways encodes service class in the number series, which is more
- * reliable than the clipped names - but a named service (Rajdhani, Duronto)
- * always wins because that is what people actually recognise.
- */
+/** The number series is more reliable than clipped names, but a named service wins. */
 export function trainClass(train: Train): TrainClass {
   for (const [pattern, result] of NAMED_CLASSES) {
     if (pattern.test(train.train_name)) return result;
@@ -215,10 +203,7 @@ export function trainClass(train: Train): TrainClass {
   return { label: 'Express', tone: 'express' };
 }
 
-/**
- * Headline counts read as approximate rather than audited: 8,489 becomes
- * "8,000+". Rounds down so the claim is always true.
- */
+/** 8,489 becomes "8,000+", rounding down so the claim is always true. */
 export function approxCount(value: number): string {
   if (value < 10) return String(value);
   const step = value >= 1000 ? 1000 : value >= 100 ? 100 : 10;
@@ -237,9 +222,3 @@ export function addDays(iso: string, days: number): string {
   ].join('-');
 }
 
-/** Does this train's name or number match what was typed? */
-export function matchesTrain(train: Train, query: string): boolean {
-  const q = query.trim().toLowerCase();
-  if (!q) return true;
-  return train.train_number.includes(q) || trainName(train.train_name).toLowerCase().includes(q);
-}

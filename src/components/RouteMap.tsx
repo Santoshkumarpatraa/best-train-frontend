@@ -1,18 +1,35 @@
 import { useEffect, useRef, useState } from 'react';
-import type { Map as MapLibreMap } from 'maplibre-gl';
+import type { Map as MapLibreMap, StyleSpecification } from 'maplibre-gl';
 import type { RouteStop } from '../services/trainApi';
+import RoutePreview from './RoutePreview';
 
-/**
- * Lazily mounted so maplibre (~285 KB gz) never lands in the main bundle - it
- * only downloads when someone actually opens a train's route.
- */
+/** Lazily mounted so maplibre (~285 KB gz) never lands in the main bundle. */
 type Props = { stops: RouteStop[]; activeCode: string | null; theme: 'light' | 'dark' };
 
-/*
- * OpenFreeMap serves keyless vector styles with their own glyphs and sprites.
- * CARTO's basemaps now stamp "API KEY REQUIRED" across every tile.
- */
+/* OpenFreeMap is keyless; CARTO now stamps "API KEY REQUIRED" across every tile. */
 const BASEMAP = (dark: boolean) => `https://tiles.openfreemap.org/styles/${dark ? 'dark' : 'positron'}`;
+
+/** Phones get the map pared back to what a route overview actually needs. */
+const isSmallScreen = () => window.matchMedia('(max-width: 900px)').matches;
+
+/** Place names orient the route; everything else labelled does not. */
+const KEPT_LABELS = 'place';
+
+/** Drops road, water and airport labels on phones; keyed on source-layer, as light and dark name layers differently. */
+async function leanStyle(url: string, signal: AbortSignal): Promise<StyleSpecification | string> {
+  try {
+    const res = await fetch(url, { signal });
+    if (!res.ok) return url;
+    const style = (await res.json()) as StyleSpecification;
+    style.layers = style.layers.filter(
+      (layer) => layer.type !== 'symbol' || layer['source-layer'] === KEPT_LABELS,
+    );
+    return style;
+  } catch {
+    // Not worth failing the map over - maplibre can fetch the full style.
+    return url;
+  }
+}
 
 /** maplibre needs WebGL; some devices and locked-down browsers have none. */
 function hasWebGL(): boolean {
@@ -28,6 +45,8 @@ export default function RouteMap({ stops, activeCode, theme }: Props) {
   const holder = useRef<HTMLDivElement>(null);
   const map = useRef<MapLibreMap | null>(null);
   const [failed, setFailed] = useState(() => !hasWebGL());
+  // The SVG route covers the empty canvas until the map's first paint.
+  const [painted, setPainted] = useState(false);
   const mapped = stops.filter((s) => s.lat !== null && s.lng !== null);
 
   useEffect(() => {
@@ -35,6 +54,12 @@ export default function RouteMap({ stops, activeCode, theme }: Props) {
 
     let cancelled = false;
     let instance: MapLibreMap | null = null;
+    const styleFetch = new AbortController();
+    let revealBackstop = 0;
+    const reveal = () => {
+      if (!cancelled) setPainted(true);
+    };
+    setPainted(false);
     const coords = mapped.map((s) => [s.lng as number, s.lat as number] as [number, number]);
     const dark = theme === 'dark';
 
@@ -43,17 +68,28 @@ export default function RouteMap({ stops, activeCode, theme }: Props) {
       [coords[0][0], coords[0][1], coords[0][0], coords[0][1]],
     );
 
+    const small = isSmallScreen();
+
     void (async () => {
       try {
-        const maplibre = await import('maplibre-gl');
+        const [maplibre, style] = await Promise.all([
+          import('maplibre-gl'),
+          small ? leanStyle(BASEMAP(dark), styleFetch.signal) : Promise.resolve(BASEMAP(dark)),
+        ]);
         if (cancelled || !holder.current) return;
 
         instance = new maplibre.Map({
           container: holder.current,
           attributionControl: { compact: true },
-          style: BASEMAP(dark),
+          style,
           bounds,
-          fitBoundsOptions: { padding: 48, maxZoom: 9 },
+          fitBoundsOptions: { padding: small ? 24 : 48, maxZoom: 9 },
+          // Nothing pitches or rotates, and the cross-fade only costs frames.
+          fadeDuration: 0,
+          dragRotate: false,
+          pitchWithRotate: false,
+          touchPitch: false,
+          refreshExpiredTiles: false,
         });
 
         map.current = instance;
@@ -109,6 +145,10 @@ export default function RouteMap({ stops, activeCode, theme }: Props) {
             },
           });
         });
+
+        /* `load` is the first complete render; `idle` waits for every tile and hid a readable map for seconds. */
+        instance.once('load', reveal);
+        revealBackstop = window.setTimeout(reveal, 2500);
       } catch {
         if (!cancelled) setFailed(true);
       }
@@ -116,11 +156,12 @@ export default function RouteMap({ stops, activeCode, theme }: Props) {
 
     return () => {
       cancelled = true;
+      styleFetch.abort();
+      window.clearTimeout(revealBackstop);
       instance?.remove();
       map.current = null;
     };
-    // `mapped` is derived from stops, so stops is the real dependency.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mapped derives from stops
   }, [stops, theme, failed]);
 
   // Fly to whichever stop the list has highlighted.
@@ -143,5 +184,10 @@ export default function RouteMap({ stops, activeCode, theme }: Props) {
     );
   }
 
-  return <div className="routemap" ref={holder} role="img" aria-label="Route map" />;
+  return (
+    <>
+      <div className="routemap" ref={holder} role="img" aria-label="Route map" />
+      {!painted && <RoutePreview stops={stops} />}
+    </>
+  );
 }
